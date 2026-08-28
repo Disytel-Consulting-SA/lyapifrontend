@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import {
   Box,
+  Button,
   Container,
   List,
   ListItemButton,
@@ -12,9 +13,20 @@ import {
 
 import WindowSelector from "./components/WindowSelector";
 import DynamicTab from "./components/DynamicTab";
+import Login from "./components/Login";
 
-import { getWindowSchema } from "./api/libertyaApi";
-import libertyaLogo from "./assets/libertya-next-logo.png";
+import {
+  getWindowSchema,
+} from "./api/libertyaApi";
+
+import {
+  clearSession,
+  getUsername,
+  isAuthenticated,
+} from "./auth";
+
+import libertyaLogo
+  from "./assets/libertya-next-logo.png";
 
 import type {
   WindowSchema,
@@ -28,14 +40,29 @@ type CurrentRecords =
 
 function App() {
 
+  /*
+   * Estado de autenticación.
+   *
+   * Se inicializa verificando si existe un token
+   * en sessionStorage.
+   */
+  const [authenticated, setAuthenticated] =
+    useState(
+      isAuthenticated()
+    );
+
+
   const [windowId, setWindowId] =
     useState<number | "">("");
+
 
   const [windowSchema, setWindowSchema] =
     useState<WindowSchema | null>(null);
 
+
   const [activeTab, setActiveTab] =
     useState(0);
+
 
   /*
    * Registro actualmente seleccionado por cada AD_Tab_ID.
@@ -43,8 +70,19 @@ function App() {
   const [currentRecords, setCurrentRecords] =
     useState<CurrentRecords>({});
 
-
+  /*
+   * Recuperar metadata de la ventana seleccionada.
+   */
   useEffect(() => {
+
+    /*
+     * Si no estamos autenticados,
+     * no intentamos recuperar nada.
+     */
+    if (!authenticated) {
+      return;
+    }
+
 
     if (windowId === "") {
 
@@ -76,11 +114,37 @@ function App() {
         setWindowSchema(null);
       });
 
-  }, [windowId]);
+  }, [
+    authenticated,
+    windowId,
+  ]);
 
 
-  const selectedTab: WindowSchemaTab | undefined =
-    windowSchema?.tabs[activeTab];
+  /*
+   * Mientras no exista sesión,
+   * mostrar exclusivamente el login.
+   */
+  if (!authenticated) {
+
+    return (
+      <Login
+        onLogin={() => {
+
+          setAuthenticated(
+            true
+          );
+
+        }}
+      />
+    );
+  }
+
+
+  const selectedTab:
+    WindowSchemaTab | undefined =
+      windowSchema?.tabs[
+        activeTab
+      ];
 
 
   /*
@@ -113,10 +177,41 @@ function App() {
     record: Record<string, unknown> | null
   ) {
 
-    setCurrentRecords((current) => ({
-      ...current,
-      [tabId]: record,
-    }));
+    setCurrentRecords(
+      (current) => ({
+        ...current,
+        [tabId]: record,
+      })
+    );
+  }
+
+
+  /*
+   * Cerrar sesión.
+   */
+  function handleLogout() {
+
+    clearSession();
+
+
+    /*
+     * Limpiar toda la información de la ventana actual.
+     */
+    setWindowId("");
+
+    setWindowSchema(null);
+
+    setActiveTab(0);
+
+    setCurrentRecords({});
+
+
+    /*
+     * Esto provoca que App renderice nuevamente Login.
+     */
+    setAuthenticated(
+      false
+    );
   }
 
 
@@ -133,64 +228,143 @@ function App() {
     const level =
       tab.tablevel ?? 0;
 
+
     /*
-     * 24 px por nivel.
+     * 24 px por nivel aproximadamente.
+     *
+     * En MUI:
+     *
+     * 1 unidad = 8 px
+     *
+     * level * 3 = 24 px por nivel.
      */
     return level * 3;
   }
 
 
   return (
+
     <Container
       maxWidth="md"
+
       sx={{
         marginTop: 4,
+        marginBottom: 4,
       }}
     >
 
+      {/*
+       * =====================================================
+       * HEADER
+       * =====================================================
+       */}
       <Box
-  sx={{
-    display: "flex",
-    alignItems: "center",
-    gap: 2,
-    marginBottom: 3,
-  }}
->
-    <Box
-        component="img"
-        src={libertyaLogo}
-        alt="Libertya Next"
         sx={{
-          width: 190,
-          height: "auto",
-        }}
-      />
-
-      <Typography
-        variant="h6"
-        color="text.secondary"
-        sx={{
-          borderLeft: 1,
-          borderColor: "divider",
-          paddingLeft: 2,
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          marginBottom: 3,
         }}
       >
-        Dynamic UI
-      </Typography>
-    </Box>
+
+        <Box
+          component="img"
+
+          src={
+            libertyaLogo
+          }
+
+          alt="Libertya Next"
+
+          sx={{
+            width: 190,
+            height: "auto",
+          }}
+        />
 
 
+        <Typography
+          variant="h6"
+
+          color="text.secondary"
+
+          sx={{
+            borderLeft: 1,
+            borderColor: "divider",
+            paddingLeft: 2,
+          }}
+        >
+          Dynamic UI
+        </Typography>
+
+
+        {/*
+         * Usuario + logout.
+         */}
+        <Box
+          sx={{
+            marginLeft: "auto",
+
+            display: "flex",
+            alignItems: "center",
+
+            gap: 1.5,
+          }}
+        >
+
+          <Typography
+            variant="body2"
+
+            color="text.secondary"
+          >
+            {getUsername()}
+          </Typography>
+
+
+          <Button
+            variant="outlined"
+
+            size="small"
+
+            onClick={
+              handleLogout
+            }
+          >
+            Salir
+          </Button>
+
+        </Box>
+
+      </Box>
+
+
+      {/*
+       * =====================================================
+       * SELECTOR DE VENTANA
+       * =====================================================
+       */}
       <WindowSelector
-        value={windowId}
-        onChange={setWindowId}
+        value={
+          windowId
+        }
+
+        onChange={
+          setWindowId
+        }
       />
 
 
+      {/*
+       * =====================================================
+       * VENTANA SELECCIONADA
+       * =====================================================
+       */}
       {windowSchema && (
         <>
 
           <Typography
             variant="h5"
+
             sx={{
               marginTop: 3,
             }}
@@ -213,15 +387,16 @@ function App() {
 
 
           {/*
-           * Navegación jerárquica superior.
+           * =================================================
+           * NAVEGACIÓN JERÁRQUICA DE TABS
+           * =================================================
            *
-           * Visualmente sigue la idea del cliente Swing:
+           * Inspirada en la jerarquía del cliente Swing,
+           * pero ubicada arriba del formulario.
            *
            * Nivel 0
            *   Nivel 1
            *     Nivel 2
-           *
-           * pero ubicada arriba del formulario.
            */}
           <Paper
             variant="outlined"
@@ -231,13 +406,13 @@ function App() {
               marginBottom: 3,
 
               /*
-               * Evita que una ventana con muchísimas tabs
-               * se coma toda la pantalla.
-               *
-               * En ese caso aparece scroll VERTICAL.
+               * Si la ventana tiene muchas pestañas,
+               * se usa scroll vertical.
                */
               maxHeight: 360,
-              overflowY: "auto",
+
+              overflowY:
+                "auto",
             }}
           >
 
@@ -247,10 +422,15 @@ function App() {
             >
 
               {windowSchema.tabs.map(
-                (tab, index) => {
+                (
+                  tab,
+                  index
+                ) => {
 
                   const active =
-                    index === activeTab;
+                    index ===
+                    activeTab;
+
 
                   const level =
                     tab.tablevel ?? 0;
@@ -259,21 +439,29 @@ function App() {
                   return (
 
                     <ListItemButton
-                      key={tab.ad_tab_id}
+                      key={
+                        tab.ad_tab_id
+                      }
 
-                      selected={active}
+                      selected={
+                        active
+                      }
 
                       onClick={() =>
-                        setActiveTab(index)
+                        setActiveTab(
+                          index
+                        )
                       }
 
                       sx={{
                         /*
-                         * Indentación jerárquica real.
+                         * Indentación jerárquica.
                          */
                         paddingLeft:
                           1.5 +
-                          getTabIndent(tab),
+                          getTabIndent(
+                            tab
+                          ),
 
                         paddingTop:
                           level === 0
@@ -285,14 +473,15 @@ function App() {
                             ? 0.8
                             : 0.35,
 
-                        borderRadius: 1,
+                        borderRadius:
+                          1,
 
-                        marginY: 0.15,
+                        marginY:
+                          0.15,
 
                         /*
                          * Las tabs raíz tienen un fondo
-                         * apenas distinto cuando no están
-                         * seleccionadas.
+                         * apenas distinto.
                          */
                         ...(
                           level === 0 &&
@@ -315,9 +504,12 @@ function App() {
                           component="span"
 
                           sx={{
-                            marginRight: 1,
+                            marginRight:
+                              1,
+
                             color:
                               "text.secondary",
+
                             fontSize:
                               "0.8rem",
                           }}
@@ -335,7 +527,9 @@ function App() {
 
                         slotProps={{
                           primary: {
+
                             sx: {
+
                               fontWeight:
                                 active
                                   ? 600
@@ -363,6 +557,11 @@ function App() {
           </Paper>
 
 
+          {/*
+           * =================================================
+           * CONTENIDO DE LA TAB ACTIVA
+           * =================================================
+           */}
           {selectedTab && (
 
             <DynamicTab

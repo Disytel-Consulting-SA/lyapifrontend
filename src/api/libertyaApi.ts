@@ -3,15 +3,12 @@ import type {
   WindowSchema,
 } from "../types/metadata";
 
+import {
+  getToken,
+} from "../auth";
+
+
 const BASE_URL = "/api";
-
-const TOKEN = import.meta.env.VITE_LIBERTYA_TOKEN;
-
-if (!TOKEN) {
-  throw new Error(
-    "No se definió VITE_LIBERTYA_TOKEN en .env.local"
-  );
-}
 
 
 export interface LookupValue {
@@ -21,25 +18,135 @@ export interface LookupValue {
 }
 
 
-/**
- * Recupera la lista de ventanas para el selector.
- */
-export async function getWindows(): Promise<WindowOption[]> {
+export interface LoginParams {
+  username: string;
+  password: string;
+  clientId: number;
+  orgId: number;
+}
 
+
+/**
+ * Obtiene un JWT de Libertya REST API.
+ *
+ * POST /token
+ *
+ * El backend espera las credenciales mediante headers:
+ *
+ * username
+ * password
+ * clientid
+ * orgid
+ */
+export async function login(
+  params: LoginParams
+): Promise<string> {
+
+  const TOKEN_EXP_MINUTES =
+    import.meta.env
+      .VITE_LIBERTYA_TOKEN_EXP_MINUTES
+    ?? "30";
+  
   const response = await fetch(
-    `${BASE_URL}/v1.0/windows/options`,
+    `${BASE_URL}/token`,
     {
+      method: "POST",
+
       headers: {
-        Authorization: `Bearer ${TOKEN}`,
+        username:
+          params.username,
+
+        password:
+          params.password,
+
+        clientid:
+          String(params.clientId),
+
+        orgid:
+          String(params.orgId),
+
+        expirationminutes: 
+          TOKEN_EXP_MINUTES,
       },
     }
   );
 
+
+  if (response.status === 403) {
+
+    throw new Error(
+      "Usuario, contraseña, compañía u organización inválidos"
+    );
+  }
+
+
   if (!response.ok) {
+
+    throw new Error(
+      `Error de autenticación: ${response.status}`
+    );
+  }
+
+
+  return response.text();
+}
+
+
+/**
+ * Headers comunes para requests autenticados.
+ */
+function getAuthHeaders(): HeadersInit {
+
+  const token =
+    getToken();
+
+
+  if (!token) {
+
+    throw new Error(
+      "No existe una sesión autenticada"
+    );
+  }
+
+
+  /*
+   * IMPORTANTE:
+   *
+   * /token devuelve:
+   *
+   * Bearer eyJ...
+   *
+   * por lo tanto NO debemos volver a agregar
+   * el prefijo Bearer.
+   */
+  return {
+    Authorization: token,
+  };
+}
+
+
+/**
+ * Recupera la lista de ventanas para el selector.
+ */
+export async function getWindows():
+  Promise<WindowOption[]> {
+
+  const response = await fetch(
+    `${BASE_URL}/v1.0/windows/options`,
+    {
+      headers:
+        getAuthHeaders(),
+    }
+  );
+
+
+  if (!response.ok) {
+
     throw new Error(
       `Error recuperando ventanas: ${response.status}`
     );
   }
+
 
   return response.json();
 }
@@ -56,25 +163,27 @@ export async function getWindowSchema(
   const response = await fetch(
     `${BASE_URL}/v1.0/windows/${windowId}/schema`,
     {
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-      },
+      headers:
+        getAuthHeaders(),
     }
   );
 
+
   if (!response.ok) {
+
     throw new Error(
       `Error recuperando schema de ventana ${windowId}: ${response.status}`
     );
   }
+
 
   return response.json();
 }
 
 
 /**
- * Recupera un registro utilizando directamente el endpoint
- * informado por WindowSchemaTab.data_endpoint.
+ * Recupera un registro utilizando directamente
+ * WindowSchemaTab.data_endpoint.
  */
 export async function getRecord(
   dataEndpoint: string,
@@ -82,31 +191,50 @@ export async function getRecord(
   filter?: string
 ): Promise<Record<string, unknown> | null> {
 
-  const params = new URLSearchParams();
+  const params =
+    new URLSearchParams();
 
-  params.set("limit", "1");
-  params.set("page", String(page));
+
+  params.set(
+    "limit",
+    "1"
+  );
+
+  params.set(
+    "page",
+    String(page)
+  );
+
 
   if (filter) {
-    params.set("filter", filter);
+
+    params.set(
+      "filter",
+      filter
+    );
   }
+
 
   const response = await fetch(
     `${BASE_URL}${dataEndpoint}?${params.toString()}`,
     {
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-      },
+      headers:
+        getAuthHeaders(),
     }
   );
 
+
   if (!response.ok) {
+
     throw new Error(
       `Error recuperando datos desde ${dataEndpoint}: ${response.status}`
     );
   }
 
-  const records = await response.json();
+
+  const records =
+    await response.json();
+
 
   return records.length > 0
     ? records[0]
@@ -116,17 +244,6 @@ export async function getRecord(
 
 /**
  * Recupera opciones de un lookup.
- *
- * Puede utilizarse de tres formas:
- *
- * 1. listado paginado:
- *    ?limit=50&page=1
- *
- * 2. búsqueda textual:
- *    ?search=cliente&limit=50&page=1
- *
- * 3. resolución puntual por valor:
- *    ?value=1000123
  */
 export async function getLookupValues(
   endpoint: string,
@@ -136,45 +253,61 @@ export async function getLookupValues(
   value?: string
 ): Promise<LookupValue[]> {
 
-  const params = new URLSearchParams();
+  const params =
+    new URLSearchParams();
 
-  params.set("limit", String(limit));
-  params.set("page", String(page));
+
+  params.set(
+    "limit",
+    String(limit)
+  );
+
+  params.set(
+    "page",
+    String(page)
+  );
+
 
   if (
     search !== undefined &&
     search.trim() !== ""
   ) {
+
     params.set(
       "search",
       search.trim()
     );
   }
 
+
   if (
     value !== undefined &&
     value.trim() !== ""
   ) {
+
     params.set(
       "value",
       value.trim()
     );
   }
 
+
   const response = await fetch(
     `${BASE_URL}${endpoint}?${params.toString()}`,
     {
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-      },
+      headers:
+        getAuthHeaders(),
     }
   );
 
+
   if (!response.ok) {
+
     throw new Error(
       `Error recuperando lookup desde ${endpoint}: ${response.status}`
     );
   }
+
 
   return response.json();
 }
