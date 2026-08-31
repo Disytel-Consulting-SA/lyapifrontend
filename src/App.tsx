@@ -23,6 +23,7 @@ import {
   clearSession,
   getUsername,
   isAuthenticated,
+  SESSION_EXPIRED_EVENT,
 } from "./auth";
 
 import libertyaLogo
@@ -69,6 +70,48 @@ function App() {
    */
   const [currentRecords, setCurrentRecords] =
     useState<CurrentRecords>({});
+
+
+  /*
+   * Escuchar vencimiento / invalidación de sesión.
+   *
+   * La capa API emitirá SESSION_EXPIRED_EVENT
+   * cuando detecte que el JWT dejó de ser válido.
+   */
+  useEffect(() => {
+
+    function handleSessionExpired() {
+
+      setWindowId("");
+
+      setWindowSchema(null);
+
+      setActiveTab(0);
+
+      setCurrentRecords({});
+
+      setAuthenticated(
+        false
+      );
+    }
+
+
+    window.addEventListener(
+      SESSION_EXPIRED_EVENT,
+      handleSessionExpired
+    );
+
+
+    return () => {
+
+      window.removeEventListener(
+        SESSION_EXPIRED_EVENT,
+        handleSessionExpired
+      );
+    };
+
+  }, []);
+
 
   /*
    * Recuperar metadata de la ventana seleccionada.

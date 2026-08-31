@@ -2,6 +2,10 @@ const TOKEN_KEY = "libertya_token";
 const USERNAME_KEY = "libertya_username";
 
 
+export const SESSION_EXPIRED_EVENT =
+  "libertya-session-expired";
+
+
 export function setSession(
   token: string,
   username: string
@@ -55,5 +59,26 @@ export function clearSession() {
 
   sessionStorage.removeItem(
     USERNAME_KEY
+  );
+}
+
+
+/*
+ * Invalidar la sesión desde cualquier capa
+ * de la aplicación.
+ *
+ * Además de limpiar sessionStorage,
+ * se notifica a App para que vuelva
+ * a mostrar el login sin recargar la página.
+ */
+export function expireSession() {
+
+  clearSession();
+
+
+  window.dispatchEvent(
+    new Event(
+      SESSION_EXPIRED_EVENT
+    )
   );
 }

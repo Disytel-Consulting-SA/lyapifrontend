@@ -4,6 +4,7 @@ import type {
 } from "../types/metadata";
 
 import {
+  expireSession,
   getToken,
 } from "../auth";
 
@@ -37,6 +38,7 @@ export interface LoginParams {
  * password
  * clientid
  * orgid
+ * expirationminutes
  */
 export async function login(
   params: LoginParams
@@ -46,7 +48,19 @@ export async function login(
     import.meta.env
       .VITE_LIBERTYA_TOKEN_EXP_MINUTES
     ?? "30";
-  
+
+
+  /*
+   * IMPORTANTE:
+   *
+   * El login NO utiliza authenticatedFetch().
+   *
+   * Un HTTP 403 en /token significa que las
+   * credenciales suministradas no son válidas.
+   *
+   * En cambio, un HTTP 403 en un request ya
+   * autenticado indica que el JWT dejó de ser válido.
+   */
   const response = await fetch(
     `${BASE_URL}/token`,
     {
@@ -65,7 +79,7 @@ export async function login(
         orgid:
           String(params.orgId),
 
-        expirationminutes: 
+        expirationminutes:
           TOKEN_EXP_MINUTES,
       },
     }
@@ -93,20 +107,51 @@ export async function login(
 
 
 /**
- * Headers comunes para requests autenticados.
+ * Ejecuta un request autenticado contra
+ * Libertya REST API.
+ *
+ * Centraliza:
+ *
+ * - obtención del JWT
+ * - header Authorization
+ * - detección de sesión inválida
+ *
+ * JWTAuthorizationFilter devuelve HTTP 403
+ * cuando el JWT está vencido, malformado
+ * o dejó de ser válido.
  */
-function getAuthHeaders(): HeadersInit {
+async function authenticatedFetch(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
 
   const token =
     getToken();
 
 
+  /*
+   * Si desapareció el token del almacenamiento,
+   * la aplicación ya no tiene una sesión válida.
+   */
   if (!token) {
+
+    expireSession();
 
     throw new Error(
       "No existe una sesión autenticada"
     );
   }
+
+
+  /*
+   * Crear una instancia de Headers permite
+   * conservar cualquier header adicional que
+   * el caller pueda necesitar en el futuro.
+   */
+  const headers =
+    new Headers(
+      options.headers
+    );
 
 
   /*
@@ -119,9 +164,36 @@ function getAuthHeaders(): HeadersInit {
    * por lo tanto NO debemos volver a agregar
    * el prefijo Bearer.
    */
-  return {
-    Authorization: token,
-  };
+  headers.set(
+    "Authorization",
+    token
+  );
+
+
+  const response =
+    await fetch(
+      url,
+      {
+        ...options,
+        headers,
+      }
+    );
+
+
+  /*
+   * JWTAuthorizationFilter del backend responde
+   * HTTP 403 ante un JWT vencido o inválido.
+   *
+   * Invalidamos la sesión local y notificamos
+   * a App mediante SESSION_EXPIRED_EVENT.
+   */
+  if (response.status === 403) {
+
+    expireSession();
+  }
+
+
+  return response;
 }
 
 
@@ -131,13 +203,10 @@ function getAuthHeaders(): HeadersInit {
 export async function getWindows():
   Promise<WindowOption[]> {
 
-  const response = await fetch(
-    `${BASE_URL}/v1.0/windows/options`,
-    {
-      headers:
-        getAuthHeaders(),
-    }
-  );
+  const response =
+    await authenticatedFetch(
+      `${BASE_URL}/v1.0/windows/options`
+    );
 
 
   if (!response.ok) {
@@ -160,13 +229,10 @@ export async function getWindowSchema(
   windowId: number
 ): Promise<WindowSchema> {
 
-  const response = await fetch(
-    `${BASE_URL}/v1.0/windows/${windowId}/schema`,
-    {
-      headers:
-        getAuthHeaders(),
-    }
-  );
+  const response =
+    await authenticatedFetch(
+      `${BASE_URL}/v1.0/windows/${windowId}/schema`
+    );
 
 
   if (!response.ok) {
@@ -215,13 +281,10 @@ export async function getRecord(
   }
 
 
-  const response = await fetch(
-    `${BASE_URL}${dataEndpoint}?${params.toString()}`,
-    {
-      headers:
-        getAuthHeaders(),
-    }
-  );
+  const response =
+    await authenticatedFetch(
+      `${BASE_URL}${dataEndpoint}?${params.toString()}`
+    );
 
 
   if (!response.ok) {
@@ -292,13 +355,10 @@ export async function getLookupValues(
   }
 
 
-  const response = await fetch(
-    `${BASE_URL}${endpoint}?${params.toString()}`,
-    {
-      headers:
-        getAuthHeaders(),
-    }
-  );
+  const response =
+    await authenticatedFetch(
+      `${BASE_URL}${endpoint}?${params.toString()}`
+    );
 
 
   if (!response.ok) {
