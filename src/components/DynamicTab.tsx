@@ -25,6 +25,7 @@ import type {
 } from "@mui/system";
 
 import {
+  createRecord,
   getLookupValues,
   getRecord,
 } from "../api/libertyaApi";
@@ -37,6 +38,11 @@ import type {
   WindowSchemaField,
   WindowSchemaTab,
 } from "../types/metadata";
+
+import {
+  buildCreatePayload,
+  validateCreateRecord,
+} from "../utils/recordPayload";
 
 import SearchField from "./SearchField";
 
@@ -373,6 +379,15 @@ export default function DynamicTab({
   const [isNewRecord, setIsNewRecord] =
     useState(false);
 
+  const [saving, setSaving] =
+    useState(false);
+
+  const [saveError, setSaveError] =
+    useState<string | null>(null);
+
+  const [saveMessage, setSaveMessage] =
+    useState<string | null>(null);
+
   function getFieldValue(
     field: WindowSchemaField
   ): unknown {
@@ -495,6 +510,9 @@ function handleNewRecord() {
     createNewRecord();
 
 
+  setSaveError(null);
+  setSaveMessage(null);
+
   setIsNewRecord(true);
 
   setRecord(
@@ -507,6 +525,99 @@ function handleNewRecord() {
     newRecord
   );
 }
+
+
+  async function handleSaveNewRecord() {
+
+    if (!tab.data_endpoint) {
+
+      setSaveError(
+        "La pestaña no posee un endpoint REST configurado"
+      );
+
+      return;
+    }
+
+
+    const missingFields =
+      validateCreateRecord(
+        tab,
+        record
+      );
+
+
+    if (missingFields.length > 0) {
+
+      setSaveError(
+        `Complete los campos obligatorios: ${
+          missingFields
+            .map((field) => field.name)
+            .join(", ")
+        }`
+      );
+
+      return;
+    }
+
+
+    setSaving(true);
+    setSaveError(null);
+    setSaveMessage(null);
+
+
+    try {
+
+      const payload =
+        buildCreatePayload(
+          tab,
+          record
+        );
+
+
+      const createdId =
+        await createRecord(
+          tab.data_endpoint,
+          payload
+        );
+
+
+      setSaveMessage(
+        createdId
+          ? `Registro creado correctamente. ID: ${createdId}`
+          : "Registro creado correctamente."
+      );
+
+
+      /*
+      * El POST ya finalizó.
+      *
+      * Salimos del modo Nuevo. El useEffect
+      * existente volverá a consultar el backend,
+      * evitando mantener en pantalla datos que
+      * sólo existían en memoria.
+      */
+      setIsNewRecord(false);
+
+
+    } catch (error) {
+
+      console.error(
+        `Error creando registro en ${tab.data_endpoint}`,
+        error
+      );
+
+
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "No fue posible crear el registro"
+      );
+
+    } finally {
+
+      setSaving(false);
+    }
+  }
 
 
   function formatDateValue(
@@ -1215,6 +1326,15 @@ function handleNewRecord() {
             : String(rawValue)
         }
 
+        onChange={(event) => {
+
+          setFieldValue(
+            field,
+            event.target.value
+          );
+
+        }}
+
         helperText={
           `column: ${field.columnname}`
         }
@@ -1224,12 +1344,6 @@ function handleNewRecord() {
         margin="normal"
 
         disabled={readOnly}
-
-        slotProps={{
-          input: {
-            readOnly: true,
-          },
-        }}
 
         sx={
           getReadOnlySx(
@@ -1509,7 +1623,9 @@ function handleNewRecord() {
                 onClick={handleNewRecord}
 
                 disabled={
-                  tab.isreadonly === true
+                  tab.isreadonly === true ||
+                  isNewRecord ||
+                  saving
                 }
               >
                 Nuevo
@@ -1517,23 +1633,41 @@ function handleNewRecord() {
 
 
               {isNewRecord && (
+                <>
 
-                <Button
-                  onClick={() => {
+                  <Button
+                    onClick={
+                      handleSaveNewRecord
+                    }
 
-                    setIsNewRecord(false);
+                    disabled={saving}
+                  >
+                    {saving
+                      ? "Guardando..."
+                      : "Guardar"}
+                  </Button>
 
-                    /*
-                    * Al salir del modo Nuevo,
-                    * el effect volverá a recuperar
-                    * el registro correspondiente
-                    * a page.
-                    */
-                  }}
-                >
-                  Cancelar
-                </Button>
 
+                  <Button
+                    onClick={() => {
+
+                      setSaveError(null);
+                      setIsNewRecord(false);
+
+                      /*
+                      * Al salir del modo Nuevo,
+                      * el effect volverá a recuperar
+                      * el registro correspondiente
+                      * a page.
+                      */
+                    }}
+
+                    disabled={saving}
+                  >
+                    Cancelar
+                  </Button>
+
+                </>
               )}
 
             </ButtonGroup>
@@ -1548,6 +1682,34 @@ function handleNewRecord() {
             </Typography>
 
           </Box>
+
+
+          {saveError && (
+
+            <Alert
+              severity="error"
+              sx={{
+                marginBottom: 2,
+              }}
+            >
+              {saveError}
+            </Alert>
+
+          )}
+
+
+          {saveMessage && (
+
+            <Alert
+              severity="success"
+              sx={{
+                marginBottom: 2,
+              }}
+            >
+              {saveMessage}
+            </Alert>
+
+          )}
 
 
           {[...tab.fields]

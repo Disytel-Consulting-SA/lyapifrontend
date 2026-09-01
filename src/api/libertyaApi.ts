@@ -371,3 +371,55 @@ export async function getLookupValues(
 
   return response.json();
 }
+
+/**
+ * Crea un nuevo registro utilizando directamente
+ * WindowSchemaTab.data_endpoint.
+ *
+ * El backend devuelve como body el identificador
+ * del registro creado.
+ */
+export async function createRecord(
+  dataEndpoint: string,
+  record: Record<string, unknown>
+): Promise<string> {
+
+  const response =
+    await authenticatedFetch(
+      `${BASE_URL}${dataEndpoint}`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify(
+          record
+        ),
+      }
+    );
+
+
+  if (!response.ok) {
+
+    /*
+     * Intentamos conservar el mensaje devuelto
+     * por el backend, dado que normalmente será
+     * mucho más útil que únicamente el status HTTP.
+     */
+    const detail =
+      await response.text();
+
+
+    throw new Error(
+      detail
+        ? `Error creando registro: ${detail}`
+        : `Error creando registro: ${response.status}`
+    );
+  }
+
+
+  return response.text();
+}
