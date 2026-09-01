@@ -370,6 +370,8 @@ export default function DynamicTab({
   const [hasNext, setHasNext] =
     useState(true);
 
+  const [isNewRecord, setIsNewRecord] =
+    useState(false);
 
   function getFieldValue(
     field: WindowSchemaField
@@ -432,6 +434,79 @@ export default function DynamicTab({
       keyField.columnname.toLowerCase()
     ];
   }
+
+function createNewRecord():
+  Record<string, unknown> {
+
+  const newRecord:
+    Record<string, unknown> = {};
+
+
+  /*
+   * Aplicar los defaults ya resueltos
+   * por el backend.
+   */
+  tab.fields.forEach((field) => {
+
+    if (
+      field.defaultvalue !== undefined
+    ) {
+
+      newRecord[
+        field.columnname.toLowerCase()
+      ] = field.defaultvalue;
+    }
+
+  });
+
+
+  /*
+   * Para tabs detalle, propagar además
+   * el vínculo con el registro padre.
+   */
+  if (
+    tab.parent_ad_tab_id !== undefined &&
+    tab.link_columnname
+  ) {
+
+    const parentValue =
+      getParentKeyValue();
+
+
+    if (
+      parentValue !== undefined &&
+      parentValue !== null
+    ) {
+
+      newRecord[
+        tab.link_columnname.toLowerCase()
+      ] = parentValue;
+    }
+  }
+
+
+  return newRecord;
+}
+
+
+function handleNewRecord() {
+
+  const newRecord =
+    createNewRecord();
+
+
+  setIsNewRecord(true);
+
+  setRecord(
+    newRecord
+  );
+
+
+  onRecordChange(
+    tab.ad_tab_id,
+    newRecord
+  );
+}
 
 
   function formatDateValue(
@@ -1169,6 +1244,7 @@ export default function DynamicTab({
   useEffect(() => {
 
     setPage(1);
+    setIsNewRecord(false);
 
   }, [
     tab.ad_tab_id,
@@ -1177,6 +1253,14 @@ export default function DynamicTab({
 
 
   useEffect(() => {
+
+   /*
+    * Mientras estamos creando un registro
+    * no debemos reemplazarlo mediante GET.
+    */
+    if (isNewRecord) {
+      return;
+    }
 
     if (!tab.data_endpoint) {
 
@@ -1296,6 +1380,7 @@ export default function DynamicTab({
     tab,
     page,
     parentRecord,
+    isNewRecord
   ]);
 
 
@@ -1394,7 +1479,10 @@ export default function DynamicTab({
                   )
                 }
 
-                disabled={page === 1}
+                disabled={
+                  isNewRecord ||
+                  page === 1
+                }
               >
                 ← Anterior
               </Button>
@@ -1408,16 +1496,55 @@ export default function DynamicTab({
                   )
                 }
 
-                disabled={!hasNext}
+                disabled={
+                  isNewRecord ||
+                  !hasNext
+                }
               >
                 Siguiente →
               </Button>
+
+
+              <Button
+                onClick={handleNewRecord}
+
+                disabled={
+                  tab.isreadonly === true
+                }
+              >
+                Nuevo
+              </Button>
+
+
+              {isNewRecord && (
+
+                <Button
+                  onClick={() => {
+
+                    setIsNewRecord(false);
+
+                    /*
+                    * Al salir del modo Nuevo,
+                    * el effect volverá a recuperar
+                    * el registro correspondiente
+                    * a page.
+                    */
+                  }}
+                >
+                  Cancelar
+                </Button>
+
+              )}
 
             </ButtonGroup>
 
 
             <Typography variant="body2">
-              Registro {page}
+
+              {isNewRecord
+                ? "Nuevo registro"
+                : `Registro ${page}`}
+
             </Typography>
 
           </Box>

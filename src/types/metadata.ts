@@ -33,7 +33,7 @@ export interface WindowSchemaTab {
   ad_table_id: number;
   tablename: string;
   data_endpoint?: string;
-  
+
   /**
    * Pestaña padre estructural.
    *
@@ -84,18 +84,28 @@ export interface WindowSchemaField {
   ismandatory: boolean;
   iskey: boolean;
   isparent: boolean;
-  
+
+  /**
+   * Valor inicial efectivo para la creación de
+   * un nuevo registro.
+   *
+   * Si la propiedad no está presente, el field
+   * no posee un default aplicable.
+   */
+  defaultvalue?: string;
+
   reference?: WindowSchemaReference;
 }
+
 
 export interface WindowSchemaReferenceValue {
   value: string;
   name: string;
 }
 
+
 export interface WindowSchemaReference {
   type: string;
   values?: WindowSchemaReferenceValue[];
   endpoint?: string;
-
 }
