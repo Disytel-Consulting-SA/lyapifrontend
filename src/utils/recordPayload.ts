@@ -328,11 +328,14 @@ export function buildUpdatePayload(
 ): Record<string, unknown> {
 
   const payload: Record<string, unknown> = {};
+  const pkColumns = new Set(
+    (tab.pk_columns ?? []).map((columnName) => columnName.toLowerCase())
+  );
 
   tab.fields.forEach((field) => {
     const columnName = field.columnname.toLowerCase();
 
-    if (field.iskey)
+    if (field.iskey || pkColumns.has(columnName))
       return;
 
     if (SERVER_MANAGED_COLUMNS.has(columnName))
