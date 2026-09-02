@@ -1,122 +1,128 @@
 import { createTheme } from "@mui/material/styles";
+import type { PaletteMode } from "@mui/material";
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: "#E2A92D",
-      dark: "#BE8224",
-      contrastText: "#000000",
+
+export function createLibertyaTheme(mode: PaletteMode) {
+  const dark = mode === "dark";
+
+  return createTheme({
+    palette: {
+      mode,
+
+      primary: {
+        main: "#E2A92D",
+        dark: "#BE8224",
+        contrastText: "#000000",
+      },
+
+      secondary: {
+        main: dark ? "#C0C0C0" : "#616A6F",
+      },
+
+      text: {
+        primary: dark ? "#FFFFFF" : "#000000",
+        secondary: dark ? "#C0C0C0" : "#616A6F",
+      },
+
+      background: {
+        default: dark ? "#121212" : "#FFFFFF",
+        paper: dark ? "#1E1E1E" : "#FFFFFF",
+      },
+
+      divider: dark ? "#616A6F" : "#C0C0C0",
     },
 
-    secondary: {
-      main: "#616A6F",
+    typography: {
+      fontFamily: '"Exo 2", sans-serif',
+
+      h4: {
+        fontWeight: 600,
+      },
+
+      h5: {
+        fontWeight: 600,
+      },
+
+      h6: {
+        fontWeight: 600,
+      },
+
+      button: {
+        fontWeight: 600,
+        textTransform: "none",
+      },
     },
 
-    text: {
-      primary: "#000000",
-      secondary: "#616A6F",
+    shape: {
+      borderRadius: 6,
     },
 
-    background: {
-      default: "#FFFFFF",
-      paper: "#FFFFFF",
-    },
+    components: {
+      MuiButton: {
+        styleOverrides: {
+          root: ({ ownerState }) => ({
+            boxShadow: "none",
 
-    divider: "#C0C0C0",
-  },
+            ...(ownerState.variant === "contained" &&
+            ownerState.color === "primary"
+              ? {
+                  backgroundColor: "#E2A92D",
+                  color: "#000000",
 
-  typography: {
-    fontFamily: '"Exo 2", sans-serif',
+                  "&:hover": {
+                    backgroundColor: "#BE8224",
+                    boxShadow: "none",
+                  },
+                }
+              : {}),
+          }),
+        },
+      },
 
-    h4: {
-      fontWeight: 600,
-    },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#E2A92D",
+            },
+          },
+        },
+      },
 
-    h5: {
-      fontWeight: 600,
-    },
+      MuiInputLabel: {
+        styleOverrides: {
+          root: {
+            "&.Mui-focused": {
+              color: "#BE8224",
+            },
+          },
+        },
+      },
 
-    h6: {
-      fontWeight: 600,
-    },
+      MuiCheckbox: {
+        styleOverrides: {
+          root: {
+            "&.Mui-checked": {
+              color: "#E2A92D",
+            },
+          },
+        },
+      },
 
-    button: {
-      fontWeight: 600,
-      textTransform: "none",
-    },
-  },
+      MuiListItemButton: {
+        styleOverrides: {
+          root: {
+            "&.Mui-selected": {
+              backgroundColor: "#E2A92D",
+              color: "#000000",
+            },
 
-  shape: {
-    borderRadius: 6,
-  },
-
-  components: {
-        MuiButton: {
-    styleOverrides: {
-        root: ({ ownerState }) => ({
-        boxShadow: "none",
-
-        ...(ownerState.variant === "contained" &&
-        ownerState.color === "primary"
-            ? {
-                backgroundColor: "#E2A92D",
-                color: "#000000",
-
-                "&:hover": {
-                backgroundColor: "#BE8224",
-                boxShadow: "none",
-                },
-            }
-            : {}),
-        }),
-    },
-    },
-
-    MuiOutlinedInput: {
-      styleOverrides: {
-        root: {
-          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-            borderColor: "#E2A92D",
+            "&.Mui-selected:hover": {
+              backgroundColor: "#BE8224",
+            },
           },
         },
       },
     },
-
-    MuiInputLabel: {
-      styleOverrides: {
-        root: {
-          "&.Mui-focused": {
-            color: "#BE8224",
-          },
-        },
-      },
-    },
-
-    MuiCheckbox: {
-      styleOverrides: {
-        root: {
-          "&.Mui-checked": {
-            color: "#E2A92D",
-          },
-        },
-      },
-    },
-
-    MuiListItemButton: {
-      styleOverrides: {
-        root: {
-          "&.Mui-selected": {
-            backgroundColor: "#E2A92D",
-            color: "#000000",
-          },
-
-          "&.Mui-selected:hover": {
-            backgroundColor: "#BE8224",
-          },
-        },
-      },
-    },
-  },
-});
-
-export default theme;
+  });
+}

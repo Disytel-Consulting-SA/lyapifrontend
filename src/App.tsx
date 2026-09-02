@@ -26,8 +26,8 @@ import {
   SESSION_EXPIRED_EVENT,
 } from "./auth";
 
-import libertyaLogo
-  from "./assets/libertya-next-logo.png";
+import LibertyaLogo from "./components/LibertyaLogo";
+import ThemeModeToggle from "./components/ThemeModeToggle";
 
 import type {
   WindowSchema,
@@ -310,20 +310,7 @@ function App() {
         }}
       >
 
-        <Box
-          component="img"
-
-          src={
-            libertyaLogo
-          }
-
-          alt="Libertya Next"
-
-          sx={{
-            width: 190,
-            height: "auto",
-          }}
-        />
+        <LibertyaLogo width={190} />
 
 
         <Typography
@@ -347,35 +334,27 @@ function App() {
         <Box
           sx={{
             marginLeft: "auto",
-
             display: "flex",
             alignItems: "center",
-
             gap: 1.5,
           }}
         >
+          <ThemeModeToggle />
 
           <Typography
             variant="body2"
-
             color="text.secondary"
           >
             {getUsername()}
           </Typography>
 
-
           <Button
             variant="outlined"
-
             size="small"
-
-            onClick={
-              handleLogout
-            }
+            onClick={handleLogout}
           >
             Salir
           </Button>
-
         </Box>
 
       </Box>

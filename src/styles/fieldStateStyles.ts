@@ -8,63 +8,112 @@ export type FieldVisualState =
   | "readonly";
 
 
-const FIELD_STATE_STYLES: Record<
-  FieldVisualState,
-  SystemStyleObject<Theme>
-> = {
+function getViewStyle(theme: Theme): SystemStyleObject<Theme> {
+  const dark = theme.palette.mode === "dark";
 
-    view: {
+  return {
     "& .MuiInputBase-root": {
-        backgroundColor: "#ffffff",
+      backgroundColor: dark
+        ? theme.palette.background.paper
+        : "#ffffff",
     },
 
     "& .MuiInputBase-input.Mui-disabled": {
-        WebkitTextFillColor: "#555555",
+      WebkitTextFillColor: dark
+        ? "#D0D0D0"
+        : "#555555",
+    },
+
+    "& .MuiSelect-select.Mui-disabled": {
+      WebkitTextFillColor: dark
+        ? "#D0D0D0"
+        : "#555555",
     },
 
     "& .MuiInputLabel-root.Mui-disabled": {
-        color: "#666666",
+      color: dark
+        ? "#C0C0C0"
+        : "#666666",
     },
 
     "& .MuiOutlinedInput-notchedOutline": {
-        borderColor: "#aaaaaa",
+      borderColor: dark
+        ? "#616A6F"
+        : "#aaaaaa",
     },
 
     "& .MuiFormHelperText-root.Mui-disabled": {
-        color: "#888888",
+      color: dark
+        ? "#999999"
+        : "#888888",
     },
-    },
+  };
+}
 
-  edit: {
-    "& .MuiInputBase-root": {
-      backgroundColor: "#ffffff",
-    },
-  },
 
-  readonly: {
+function getEditStyle(theme: Theme): SystemStyleObject<Theme> {
+  return {
     "& .MuiInputBase-root": {
-      backgroundColor: "#f1f1f1",
+      backgroundColor: theme.palette.background.paper,
+    },
+  };
+}
+
+
+function getReadOnlyStyle(theme: Theme): SystemStyleObject<Theme> {
+  const dark = theme.palette.mode === "dark";
+
+  return {
+    "& .MuiInputBase-root": {
+      backgroundColor: dark
+        ? "#2A2A2A"
+        : "#f1f1f1",
     },
 
     "& .MuiInputBase-input.Mui-disabled": {
-      WebkitTextFillColor: "#666666",
+      WebkitTextFillColor: dark
+        ? "#AFAFAF"
+        : "#666666",
+    },
+
+    "& .MuiSelect-select.Mui-disabled": {
+      WebkitTextFillColor: dark
+        ? "#AFAFAF"
+        : "#666666",
     },
 
     "& .MuiInputLabel-root.Mui-disabled": {
-      color: "#707070",
+      color: dark
+        ? "#999999"
+        : "#707070",
+    },
+
+    "& .MuiOutlinedInput-notchedOutline": {
+      borderColor: dark
+        ? "#4A4A4A"
+        : "#C0C0C0",
     },
 
     "& .MuiFormHelperText-root.Mui-disabled": {
-      color: "#888888",
+      color: dark
+        ? "#808080"
+        : "#888888",
     },
-  },
-
-};
+  };
+}
 
 
 export function getFieldStateSx(
   state: FieldVisualState
-): SystemStyleObject<Theme> {
+): (theme: Theme) => SystemStyleObject<Theme> {
 
-  return FIELD_STATE_STYLES[state];
+  return (theme: Theme) => {
+    if (state === "view")
+      return getViewStyle(theme);
+
+    if (state === "edit")
+      return getEditStyle(theme);
+
+    return getReadOnlyStyle(theme);
+  };
 }
