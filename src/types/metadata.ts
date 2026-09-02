@@ -33,6 +33,7 @@ export interface WindowSchemaTab {
   ad_table_id: number;
   tablename: string;
   data_endpoint?: string;
+  pk_columns?: string[];
 
   /**
    * Pestaña padre estructural.

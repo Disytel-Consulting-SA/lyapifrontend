@@ -28,6 +28,8 @@ import {
   createRecord,
   getLookupValues,
   getRecord,
+  getRecordByKey,
+  updateRecord,
 } from "../api/libertyaApi";
 
 import type {
@@ -41,7 +43,9 @@ import type {
 
 import {
   buildCreatePayload,
+  buildUpdatePayload,
   validateCreateRecord,
+  validateUpdateRecord,  
 } from "../utils/recordPayload";
 
 import SearchField from "./SearchField";
@@ -379,6 +383,12 @@ export default function DynamicTab({
   const [isNewRecord, setIsNewRecord] =
     useState(false);
 
+  const [isEditing, setIsEditing] = 
+    useState(false);
+
+  const [originalRecord, setOriginalRecord] =
+    useState<Record<string, unknown> | null>(null);
+
   const [saving, setSaving] =
     useState(false);
 
@@ -412,13 +422,11 @@ export default function DynamicTab({
   }
 
 
-  function isFieldReadOnly(
-    field: WindowSchemaField
-  ): boolean {
-
+  function isFieldReadOnly(field: WindowSchemaField): boolean {
     return (
       tab.isreadonly === true ||
-      field.isreadonly === true
+      field.isreadonly === true ||
+      (!isNewRecord && !isEditing)
     );
   }
 
@@ -527,6 +535,43 @@ function handleNewRecord() {
 }
 
 
+  function handleEditRecord() {
+    setSaveError(null);
+    setSaveMessage(null);
+
+    setOriginalRecord({ ...record });
+    setIsEditing(true);
+  }
+
+
+  function handleCancelEdit() {
+    if (originalRecord)
+      setRecord({ ...originalRecord });
+
+    setSaveError(null);
+    setIsEditing(false);
+  }
+
+
+  function getRecordKeyValues(): Array<string | number> | undefined {
+    if (!tab.pk_columns || tab.pk_columns.length === 0)
+      return undefined;
+
+    const values: Array<string | number> = [];
+
+    for (const columnName of tab.pk_columns) {
+      const value = record[columnName.toLowerCase()];
+
+      if (typeof value !== "string" && typeof value !== "number")
+        return undefined;
+
+      values.push(value);
+    }
+
+    return values;
+  }
+
+
   async function handleSaveNewRecord() {
 
     if (!tab.data_endpoint) {
@@ -615,6 +660,82 @@ function handleNewRecord() {
 
     } finally {
 
+      setSaving(false);
+    }
+  }
+
+
+  async function handleSaveEditedRecord() {
+    if (!tab.data_endpoint) {
+      setSaveError("La pestaña no posee un endpoint REST configurado");
+      return;
+    }
+
+    if (!originalRecord) {
+      setSaveError("No se dispone del estado original del registro");
+      return;
+    }
+
+    const recordKeyValues = getRecordKeyValues();
+
+    if (!recordKeyValues) {
+      setSaveError("No fue posible determinar la clave primaria del registro");
+      return;
+    }
+
+    const missingFields = validateUpdateRecord(tab, record);
+
+    if (missingFields.length > 0) {
+      setSaveError(
+        `Complete los campos obligatorios: ${missingFields.map((field) => field.name).join(", ")}`
+      );
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+    setSaveMessage(null);
+
+    try {
+
+      const payload = buildUpdatePayload(tab, record, originalRecord);
+
+      if (Object.keys(payload).length === 0) {
+        setSaveMessage("No existen cambios para guardar.");
+        setIsEditing(false);
+        return;
+      }
+
+      await updateRecord(tab.data_endpoint, recordKeyValues, payload);
+
+      const updatedRecord = await getRecordByKey(
+        tab.data_endpoint,
+        recordKeyValues
+      );
+
+      if (!updatedRecord) {
+        setSaveError("El registro fue actualizado pero no pudo recuperarse nuevamente.");
+        setIsEditing(false);
+        return;
+      }
+
+      setRecord(updatedRecord);
+      setOriginalRecord({ ...updatedRecord });
+      onRecordChange(tab.ad_tab_id, updatedRecord);
+
+      setSaveMessage("Registro actualizado correctamente.");
+      setIsEditing(false);      
+
+    } catch (error) {
+      console.error(`Error actualizando registro en ${tab.data_endpoint}`, error);
+
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "No fue posible actualizar el registro"
+      );
+
+    } finally {
       setSaving(false);
     }
   }
@@ -1356,9 +1477,10 @@ function handleNewRecord() {
 
 
   useEffect(() => {
-
     setPage(1);
     setIsNewRecord(false);
+    setIsEditing(false);
+    setOriginalRecord(null);
 
   }, [
     tab.ad_tab_id,
@@ -1459,9 +1581,9 @@ function handleNewRecord() {
 
 
         setRecord(result);
+        setOriginalRecord({ ...result });
 
         setHasNext(true);
-
 
         onRecordChange(
           tab.ad_tab_id,
@@ -1494,7 +1616,7 @@ function handleNewRecord() {
     tab,
     page,
     parentRecord,
-    isNewRecord
+    isNewRecord,
   ]);
 
 
@@ -1592,9 +1714,9 @@ function handleNewRecord() {
                       )
                   )
                 }
-
                 disabled={
                   isNewRecord ||
+                  isEditing ||
                   page === 1
                 }
               >
@@ -1612,6 +1734,7 @@ function handleNewRecord() {
 
                 disabled={
                   isNewRecord ||
+                  isEditing ||
                   !hasNext
                 }
               >
@@ -1621,10 +1744,10 @@ function handleNewRecord() {
 
               <Button
                 onClick={handleNewRecord}
-
                 disabled={
                   tab.isreadonly === true ||
                   isNewRecord ||
+                  isEditing ||
                   saving
                 }
               >
@@ -1632,41 +1755,57 @@ function handleNewRecord() {
               </Button>
 
 
+              <Button
+                onClick={handleEditRecord}
+                disabled={
+                  tab.isreadonly === true ||
+                  isNewRecord ||
+                  isEditing ||
+                  saving ||
+                  getRecordKeyValues() === undefined
+                }
+              >
+                Editar
+              </Button>
+
+
               {isNewRecord && (
                 <>
-
                   <Button
-                    onClick={
-                      handleSaveNewRecord
-                    }
-
+                    onClick={handleSaveNewRecord}
                     disabled={saving}
                   >
-                    {saving
-                      ? "Guardando..."
-                      : "Guardar"}
+                    {saving ? "Guardando..." : "Guardar"}
                   </Button>
-
 
                   <Button
                     onClick={() => {
-
                       setSaveError(null);
                       setIsNewRecord(false);
-
-                      /*
-                      * Al salir del modo Nuevo,
-                      * el effect volverá a recuperar
-                      * el registro correspondiente
-                      * a page.
-                      */
                     }}
-
                     disabled={saving}
                   >
                     Cancelar
                   </Button>
+                </>
+              )}
 
+
+              {isEditing && (
+                <>
+                  <Button
+                    onClick={handleSaveEditedRecord}
+                    disabled={saving}
+                  >
+                    {saving ? "Guardando..." : "Guardar"}
+                  </Button>
+
+                  <Button
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                  >
+                    Cancelar
+                  </Button>
                 </>
               )}
 
@@ -1674,11 +1813,11 @@ function handleNewRecord() {
 
 
             <Typography variant="body2">
-
               {isNewRecord
                 ? "Nuevo registro"
+                : isEditing
+                ? `Editando registro ${page}`
                 : `Registro ${page}`}
-
             </Typography>
 
           </Box>

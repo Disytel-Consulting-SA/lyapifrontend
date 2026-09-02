@@ -305,6 +305,38 @@ export async function getRecord(
 }
 
 
+
+/**
+ * Recupera un registro por su clave primaria.
+ *
+ * Soporta claves simples y compuestas, respetando
+ * el orden definido por WindowSchemaTab.pk_columns.
+ */
+export async function getRecordByKey(
+  dataEndpoint: string,
+  recordIds: Array<string | number>
+): Promise<Record<string, unknown> | null> {
+  const recordPath = recordIds.map((id) => encodeURIComponent(String(id))).join("/");
+
+  const response = await authenticatedFetch(
+    `${BASE_URL}${dataEndpoint}/${recordPath}`
+  );
+
+  if (response.status === 404)
+    return null;
+
+  if (!response.ok) {
+    throw new Error(
+      `Error recuperando registro desde ${dataEndpoint}: ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
+
+
+
 /**
  * Recupera opciones de un lookup.
  */
@@ -420,6 +452,40 @@ export async function createRecord(
     );
   }
 
+
+  return response.text();
+}
+
+
+/**
+ * Actualiza un registro existente utilizando directamente
+ * WindowSchemaTab.data_endpoint.
+ */
+export async function updateRecord(
+  dataEndpoint: string,
+  recordIds: Array<string | number>,
+  record: Record<string, unknown>
+): Promise<string> {
+  const recordPath = recordIds.map((id) => encodeURIComponent(String(id))).join("/");
+
+  const response = await authenticatedFetch(
+    `${BASE_URL}${dataEndpoint}/${recordPath}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(record),
+    }
+  );
+
+  if (!response.ok) {
+    const detail = await response.text();
+
+    throw new Error(
+      detail
+        ? `Error actualizando registro: ${detail}`
+        : `Error actualizando registro: ${response.status}`
+    );
+  }
 
   return response.text();
 }

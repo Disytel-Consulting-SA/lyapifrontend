@@ -314,3 +314,84 @@ export function validateCreateRecord(
     }
   );
 }
+
+/**
+ * Construye el payload destinado al PUT.
+ *
+ * A diferencia del POST, un campo vacío debe poder
+ * representar la intención explícita de limpiar su valor.
+ */
+export function buildUpdatePayload(
+  tab: WindowSchemaTab,
+  record: Record<string, unknown>,
+  originalRecord: Record<string, unknown>
+): Record<string, unknown> {
+
+  const payload: Record<string, unknown> = {};
+
+  tab.fields.forEach((field) => {
+    const columnName = field.columnname.toLowerCase();
+
+    if (field.iskey)
+      return;
+
+    if (SERVER_MANAGED_COLUMNS.has(columnName))
+      return;
+
+    if (field.reference?.type === "button")
+      return;
+
+    if (tab.isreadonly === true || field.isreadonly === true)
+      return;
+
+    const value = record[columnName];
+    const originalValue = originalRecord[columnName];
+
+    /*
+     * No enviar campos que no cambiaron.
+     */
+    if (value === originalValue)
+      return;
+
+    /*
+     * Si antes había un valor y ahora quedó vacío,
+     * indicamos explícitamente al backend que debe
+     * persistir NULL.
+     */
+    if (isEmptyValue(value)) {
+      if (!isEmptyValue(originalValue))
+        payload[columnName] = "[NULL]";
+
+      return;
+    }
+
+    payload[columnName] = normalizeFieldValue(field, value);
+  });
+
+  return payload;
+}
+
+
+/**
+ * Valida los campos obligatorios durante la edición.
+ */
+export function validateUpdateRecord(
+  tab: WindowSchemaTab,
+  record: Record<string, unknown>
+): WindowSchemaField[] {
+
+  return tab.fields.filter((field) => {
+    if (!field.ismandatory)
+      return false;
+
+    if (field.isdisplayed === false)
+      return false;
+
+    if (tab.isreadonly === true || field.isreadonly === true)
+      return false;
+
+    const value = record[field.columnname.toLowerCase()];
+
+    return isEmptyValue(value);
+  });
+}
