@@ -489,3 +489,37 @@ export async function updateRecord(
 
   return response.text();
 }
+
+
+/**
+ * Elimina un registro existente utilizando directamente
+ * WindowSchemaTab.data_endpoint.
+ *
+ * Soporta claves simples y compuestas, respetando
+ * el orden definido por WindowSchemaTab.pk_columns.
+ */
+export async function deleteRecord(
+  dataEndpoint: string,
+  recordIds: Array<string | number>
+): Promise<string> {
+  const recordPath = recordIds.map((id) => encodeURIComponent(String(id))).join("/");
+
+  const response = await authenticatedFetch(
+    `${BASE_URL}${dataEndpoint}/${recordPath}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  if (!response.ok) {
+    const detail = await response.text();
+
+    throw new Error(
+      detail
+        ? `Error eliminando registro: ${detail}`
+        : `Error eliminando registro: ${response.status}`
+    );
+  }
+
+  return response.text();
+}

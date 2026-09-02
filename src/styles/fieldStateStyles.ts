@@ -117,3 +117,32 @@ export function getFieldStateSx(
     return getReadOnlyStyle(theme);
   };
 }
+
+
+export function getReadOnlyContainerSx(
+  readOnly: boolean
+): (theme: Theme) => SystemStyleObject<Theme> {
+  return (theme: Theme) => {
+    if (!readOnly)
+      return {};
+
+    const dark = theme.palette.mode === "dark";
+
+    return {
+      backgroundColor: dark ? "#2A2A2A" : "#f1f1f1",
+      color: dark ? "#AFAFAF" : "#666666",
+      borderRadius: 1,
+      paddingLeft: 1,
+      paddingTop: 0.5,
+      paddingBottom: 0.5,
+
+      "& .MuiFormControlLabel-label.Mui-disabled": {
+        color: dark ? "#999999" : "#707070",
+      },
+
+      "& .MuiTypography-root": {
+        color: dark ? "#808080" : "#888888",
+      },
+    };
+  };
+}

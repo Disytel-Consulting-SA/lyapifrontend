@@ -18,6 +18,7 @@ import {
 
 import {
   createRecord,
+  deleteRecord,
   getLookupValues,
   getRecord,
   getRecordByKey,
@@ -34,7 +35,7 @@ import {
   validateUpdateRecord,
 } from "../utils/recordPayload";
 
-import { getFieldStateSx } from "../styles/fieldStateStyles";
+import { getReadOnlyContainerSx, getFieldStateSx } from "../styles/fieldStateStyles";
 import type { FieldVisualState } from "../styles/fieldStateStyles";
 
 import SearchField from "./SearchField";
@@ -197,7 +198,7 @@ export default function DynamicTab({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-
+  const [refreshToken, setRefreshToken] = useState(0);
 
   function getFieldValue(field: WindowSchemaField): unknown {
     return record[field.columnname.toLowerCase()];
@@ -452,6 +453,59 @@ export default function DynamicTab({
   }
 
 
+  async function handleDeleteRecord() {
+    if (!tab.data_endpoint) {
+      setSaveError("La pestaña no posee un endpoint REST configurado");
+      return;
+    }
+
+    const recordKeyValues = getRecordKeyValues();
+
+    if (!recordKeyValues) {
+      setSaveError("No fue posible determinar la clave primaria del registro");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "¿Confirma eliminar este registro?\n\nEsta operación no puede deshacerse."
+    );
+
+    if (!confirmed)
+      return;
+
+    setSaving(true);
+    setSaveError(null);
+    setSaveMessage(null);
+
+    try {
+      await deleteRecord(tab.data_endpoint, recordKeyValues);
+
+      setSaveMessage("Registro eliminado correctamente.");
+
+      /*
+      * Volver a consultar la página actual.
+      *
+      * Si acabamos de eliminar el último registro disponible
+      * en esa posición, el useEffect existente retrocederá
+      * automáticamente una página cuando corresponda.
+      */
+      setRefreshToken((current) => current + 1);
+
+    } catch (error) {
+      console.error(`Error eliminando registro en ${tab.data_endpoint}`, error);
+
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "No fue posible eliminar el registro"
+      );
+
+    } finally {
+      setSaving(false);
+    }
+  }
+
+
   function formatDateValue(rawValue: unknown, type: string): string {
     if (
       rawValue === null ||
@@ -525,21 +579,15 @@ export default function DynamicTab({
 
       return (
         <Box
-          key={field.ad_field_id}
-          sx={{
-            marginTop: 2,
-            marginBottom: 1,
-            ...(metadataReadOnly
-              ? {
-                  backgroundColor: "#f1f1f1",
-                  borderRadius: 1,
-                  paddingLeft: 1,
-                  paddingTop: 0.5,
-                  paddingBottom: 0.5,
-                }
-              : {}),
-          }}
-        >
+            key={field.ad_field_id}
+            sx={[
+              {
+                marginTop: 2,
+                marginBottom: 1,
+              },
+              getReadOnlyContainerSx(metadataReadOnly),
+            ]}
+          >
           <FormControlLabel
             control={
               <Checkbox
@@ -875,7 +923,7 @@ export default function DynamicTab({
         onRecordChange(tab.ad_tab_id, null);
       });
 
-  }, [tab, page, parentRecord, isNewRecord]);
+  }, [tab, page, parentRecord, isNewRecord, refreshToken]);
 
 
   return (
@@ -963,6 +1011,21 @@ export default function DynamicTab({
               >
                 Editar
               </Button>
+
+
+              <Button
+                onClick={handleDeleteRecord}
+                disabled={
+                  tab.isreadonly === true ||
+                  isNewRecord ||
+                  isEditing ||
+                  saving ||
+                  getRecordKeyValues() === undefined
+                }
+              >
+                Eliminar
+              </Button>
+
 
               {isNewRecord && (
                 <>
