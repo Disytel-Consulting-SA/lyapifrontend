@@ -306,7 +306,7 @@ function App() {
 
       {/* SELECTOR DE VENTANA */}
       {roleId !== "" && (
-        <Box sx={{ marginTop: 2 }}>
+        <Box sx={{ marginTop: 1 }}>
           <WindowSelector
             key={roleId}
             value={windowId}
@@ -327,26 +327,29 @@ function App() {
           }}
         >
 
-          <Typography
-            variant="h5"
-            sx={{
-              marginTop: 3,
-            }}
-          >
+        <Box
+          sx={{
+            marginTop: 1.5,
+            marginBottom: 1.5,
+            display: "flex",
+            alignItems: "baseline",
+            gap: 2,
+            flexWrap: "wrap",
+          }}
+        >
+          <Typography variant="h5">
             {windowSchema.name}
           </Typography>
 
-
           {windowSchema.description && (
             <Typography
-              sx={{
-                marginTop: 1,
-                marginBottom: 3,
-              }}
+              variant="body2"
+              color="text.secondary"
             >
               {windowSchema.description}
             </Typography>
           )}
+        </Box>
 
 
           {/* ÁRBOL + FORMULARIO */}

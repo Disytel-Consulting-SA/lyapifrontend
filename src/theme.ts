@@ -34,6 +34,7 @@ export function createLibertyaTheme(mode: PaletteMode) {
 
     typography: {
       fontFamily: '"Exo 2", sans-serif',
+      fontSize: 13,
 
       h4: {
         fontWeight: 600,
@@ -58,6 +59,35 @@ export function createLibertyaTheme(mode: PaletteMode) {
     },
 
     components: {
+      MuiTextField: {
+        defaultProps: {
+          size: "small",
+          margin: "dense",
+        },
+      },
+
+      MuiFormHelperText: {
+        styleOverrides: {
+          root: {
+            fontSize: "0.65rem",
+            lineHeight: 1.1,
+            marginTop: 2,
+          },
+        },
+      },
+
+      MuiFormControl: {
+        defaultProps: {
+          size: "small",
+          margin: "dense",
+        },
+      },
+
+      MuiAutocomplete: {
+        defaultProps: {
+          size: "small",
+        },
+      },
       MuiButton: {
         styleOverrides: {
           root: ({ ownerState }) => ({

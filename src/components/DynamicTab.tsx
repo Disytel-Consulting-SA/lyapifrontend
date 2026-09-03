@@ -143,7 +143,7 @@ function LookupField({
 
 
   return (
-    <Box sx={{ marginTop: 2, marginBottom: 1 }}>
+    <Box sx={{ marginTop: .75, marginBottom: .25 }}>
       <Autocomplete
         options={options}
         value={selectedOption}
@@ -562,7 +562,13 @@ export default function DynamicTab({
 
           <Typography
             variant="caption"
-            sx={{ display: "block", marginTop: 0.5 }}
+            sx={{
+              display: "block",
+              fontSize: "0.65rem",
+              lineHeight: 1.1,
+              marginTop: 0.1,
+              marginLeft: 1,
+            }}
           >
             column: {field.columnname}
           </Typography>
@@ -582,8 +588,8 @@ export default function DynamicTab({
             key={field.ad_field_id}
             sx={[
               {
-                marginTop: 2,
-                marginBottom: 1,
+                marginTop: 0.75,
+                marginBottom: 0.25,
               },
               getReadOnlyContainerSx(metadataReadOnly),
             ]}
@@ -601,7 +607,13 @@ export default function DynamicTab({
 
           <Typography
             variant="caption"
-            sx={{ display: "block", marginLeft: 4 }}
+            sx={{
+              display: "block",
+              fontSize: "0.65rem",
+              lineHeight: 1.1,
+              marginTop: 0.1,
+              marginLeft: 4,
+            }}
           >
             column: {field.columnname}
           </Typography>
@@ -648,7 +660,7 @@ export default function DynamicTab({
         <FormControl
           key={field.ad_field_id}
           fullWidth
-          margin="normal"
+          margin="dense"
           required={field.ismandatory}
           disabled={!editable}
           sx={getFieldStateSx(visualState)}
@@ -675,7 +687,13 @@ export default function DynamicTab({
 
           <Typography
             variant="caption"
-            sx={{ marginLeft: 2, marginTop: 0.5 }}
+            sx={{
+              display: "block",
+              fontSize: "0.65rem",
+              lineHeight: 1.1,
+              marginTop: 0.1,
+              marginLeft: 1,
+            }}
           >
             column: {field.columnname}
           </Typography>
@@ -709,7 +727,7 @@ export default function DynamicTab({
           onChange={(event) => setFieldValue(field, event.target.value)}
           helperText={`column: ${field.columnname}`}
           fullWidth
-          margin="normal"
+          margin="dense"
           slotProps={{ inputLabel: { shrink: true } }}
           sx={getFieldStateSx(visualState)}
         />
@@ -733,7 +751,7 @@ export default function DynamicTab({
           onChange={(event) => setFieldValue(field, event.target.value)}
           helperText={`column: ${field.columnname}`}
           fullWidth
-          margin="normal"
+          margin="dense"
           slotProps={{ htmlInput: { step: 1 } }}
           sx={getFieldStateSx(visualState)}
         />
@@ -757,7 +775,7 @@ export default function DynamicTab({
           onChange={(event) => setFieldValue(field, event.target.value)}
           helperText={`column: ${field.columnname}`}
           fullWidth
-          margin="normal"
+          margin="dense"
           slotProps={{ htmlInput: { step: "any" } }}
           sx={getFieldStateSx(visualState)}
         />
@@ -794,7 +812,7 @@ export default function DynamicTab({
           onChange={(event) => setFieldValue(field, event.target.value)}
           helperText={`column: ${field.columnname}`}
           fullWidth
-          margin="normal"
+          margin="dense"
           slotProps={{ htmlInput: { step: "any" } }}
           sx={[
             getFieldStateSx(visualState),
@@ -822,7 +840,7 @@ export default function DynamicTab({
           fullWidth
           multiline
           minRows={3}
-          margin="normal"
+          margin="dense"
           sx={getFieldStateSx(visualState)}
         />
       );
@@ -842,7 +860,7 @@ export default function DynamicTab({
         onChange={(event) => setFieldValue(field, event.target.value)}
         helperText={`column: ${field.columnname}`}
         fullWidth
-        margin="normal"
+        margin="dense"
         disabled={!editable}
         sx={getFieldStateSx(visualState)}
       />
