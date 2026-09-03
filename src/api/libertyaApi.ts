@@ -27,6 +27,12 @@ export interface LoginParams {
 }
 
 
+export interface RoleOption {
+  ad_role_id: number;
+  name: string;
+}
+
+
 /**
  * Obtiene un JWT de Libertya REST API.
  *
@@ -104,6 +110,52 @@ export async function login(
 
   return response.text();
 }
+
+
+
+/**
+ * Recupera los perfiles disponibles para el usuario autenticado.
+ */
+export async function getRoleOptions(): Promise<RoleOption[]> {
+  const response = await authenticatedFetch(
+    `${BASE_URL}/v1.0/roleoptions`
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Error recuperando perfiles: ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Selecciona un perfil y obtiene un nuevo JWT contextual.
+ *
+ * El backend conserva username, clientID y orgID desde el JWT actual
+ * y agrega el roleID solicitado luego de validarlo.
+ */
+export async function selectRole(roleId: number): Promise<string> {
+  const response = await authenticatedFetch(
+    `${BASE_URL}/token/context`,
+    {
+      method: "POST",
+      headers: {
+        roleid: String(roleId),
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Error seleccionando perfil: ${response.status}`
+    );
+  }
+
+  return response.text();
+}
+
 
 
 /**

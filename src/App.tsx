@@ -12,22 +12,28 @@ import {
 } from "@mui/material";
 
 import WindowSelector from "./components/WindowSelector";
+import RoleSelector from "./components/RoleSelector";
 import DynamicTab from "./components/DynamicTab";
 import Login from "./components/Login";
+import LibertyaLogo from "./components/LibertyaLogo";
+import ThemeModeToggle from "./components/ThemeModeToggle";
 
 import {
   getWindowSchema,
+  selectRole,
+  type RoleOption,
 } from "./api/libertyaApi";
 
 import {
+  clearRole,
   clearSession,
+  getRoleId,
   getUsername,
   isAuthenticated,
   SESSION_EXPIRED_EVENT,
+  setRole,
+  setToken,
 } from "./auth";
-
-import LibertyaLogo from "./components/LibertyaLogo";
-import ThemeModeToggle from "./components/ThemeModeToggle";
 
 import type {
   WindowSchema,
@@ -41,75 +47,49 @@ type CurrentRecords =
 
 function App() {
 
-  /*
-   * Estado de autenticación.
-   *
-   * Se inicializa verificando si existe un token
-   * en sessionStorage.
-   */
   const [authenticated, setAuthenticated] =
-    useState(
-      isAuthenticated()
-    );
+    useState(isAuthenticated());
 
+  const [roleId, setRoleId] =
+    useState<number | "">(getRoleId() ?? "");
 
   const [windowId, setWindowId] =
     useState<number | "">("");
 
-
   const [windowSchema, setWindowSchema] =
     useState<WindowSchema | null>(null);
-
 
   const [activeTab, setActiveTab] =
     useState(0);
 
-
-  /*
-   * Registro actualmente seleccionado por cada AD_Tab_ID.
-   */
   const [currentRecords, setCurrentRecords] =
     useState<CurrentRecords>({});
 
 
   /*
    * Escuchar vencimiento / invalidación de sesión.
-   *
-   * La capa API emitirá SESSION_EXPIRED_EVENT
-   * cuando detecte que el JWT dejó de ser válido.
    */
   useEffect(() => {
-
     function handleSessionExpired() {
-
+      setRoleId("");
       setWindowId("");
-
       setWindowSchema(null);
-
       setActiveTab(0);
-
       setCurrentRecords({});
-
-      setAuthenticated(
-        false
-      );
+      setAuthenticated(false);
     }
-
 
     window.addEventListener(
       SESSION_EXPIRED_EVENT,
       handleSessionExpired
     );
 
-
     return () => {
-
       window.removeEventListener(
         SESSION_EXPIRED_EVENT,
         handleSessionExpired
       );
     };
-
   }, []);
 
 
@@ -117,38 +97,23 @@ function App() {
    * Recuperar metadata de la ventana seleccionada.
    */
   useEffect(() => {
-
-    /*
-     * Si no estamos autenticados,
-     * no intentamos recuperar nada.
-     */
-    if (!authenticated) {
+    if (!authenticated || roleId === "") {
       return;
     }
 
-
     if (windowId === "") {
-
       setWindowSchema(null);
       setActiveTab(0);
       setCurrentRecords({});
-
       return;
     }
 
-
-    /*
-     * Nueva ventana:
-     * limpiar navegación y registros seleccionados.
-     */
     setActiveTab(0);
     setCurrentRecords({});
-
 
     getWindowSchema(windowId)
       .then(setWindowSchema)
       .catch((error) => {
-
         console.error(
           `Error recuperando schema de ventana ${windowId}`,
           error
@@ -159,41 +124,37 @@ function App() {
 
   }, [
     authenticated,
+    roleId,
     windowId,
   ]);
 
 
-  /*
-   * Mientras no exista sesión,
-   * mostrar exclusivamente el login.
-   */
   if (!authenticated) {
-
     return (
       <Login
         onLogin={() => {
+          /*
+           * Cada login nuevo comienza sin contexto operativo.
+           */
+          clearRole();
 
-          setAuthenticated(
-            true
-          );
+          setRoleId("");
+          setWindowId("");
+          setWindowSchema(null);
+          setActiveTab(0);
+          setCurrentRecords({});
 
+          setAuthenticated(true);
         }}
       />
     );
   }
 
 
-  const selectedTab:
-    WindowSchemaTab | undefined =
-      windowSchema?.tabs[
-        activeTab
-      ];
+  const selectedTab: WindowSchemaTab | undefined =
+    windowSchema?.tabs[activeTab];
 
 
-  /*
-   * Metadata de la pestaña padre,
-   * si la pestaña actual es detalle.
-   */
   const parentTab =
     selectedTab?.parent_ad_tab_id !== undefined
       ? windowSchema?.tabs.find(
@@ -204,9 +165,6 @@ function App() {
       : undefined;
 
 
-  /*
-   * Registro actual de la pestaña padre.
-   */
   const parentRecord =
     selectedTab?.parent_ad_tab_id !== undefined
       ? currentRecords[
@@ -219,7 +177,6 @@ function App() {
     tabId: number,
     record: Record<string, unknown> | null
   ) {
-
     setCurrentRecords(
       (current) => ({
         ...current,
@@ -229,78 +186,70 @@ function App() {
   }
 
 
-  /*
-   * Cerrar sesión.
-   */
-  function handleLogout() {
+  async function handleRoleChange(role: RoleOption) {
+    try {
+      const contextualToken =
+        await selectRole(role.ad_role_id);
 
-    clearSession();
+      setToken(contextualToken);
 
+      setRole(
+        role.ad_role_id,
+        role.name
+      );
 
-    /*
-     * Limpiar toda la información de la ventana actual.
-     */
-    setWindowId("");
+      /*
+       * El nuevo perfil puede cambiar permisos incluso
+       * si una misma ventana existe en ambos perfiles.
+       */
+      setRoleId(role.ad_role_id);
+      setWindowId("");
+      setWindowSchema(null);
+      setActiveTab(0);
+      setCurrentRecords({});
 
-    setWindowSchema(null);
-
-    setActiveTab(0);
-
-    setCurrentRecords({});
-
-
-    /*
-     * Esto provoca que App renderice nuevamente Login.
-     */
-    setAuthenticated(
-      false
-    );
+    } catch (error) {
+      console.error(
+        `Error seleccionando perfil ${role.name}`,
+        error
+      );
+    }
   }
 
 
-  /*
-   * Devuelve la indentación visual de una pestaña.
-   *
-   * Usamos tablevel porque representa directamente
-   * la jerarquía de tabs de Libertya.
-   */
+  function handleLogout() {
+    clearSession();
+
+    setRoleId("");
+    setWindowId("");
+    setWindowSchema(null);
+    setActiveTab(0);
+    setCurrentRecords({});
+
+    setAuthenticated(false);
+  }
+
+
   function getTabIndent(
     tab: WindowSchemaTab
   ): number {
-
     const level =
       tab.tablevel ?? 0;
 
-
-    /*
-     * 24 px por nivel aproximadamente.
-     *
-     * En MUI:
-     *
-     * 1 unidad = 8 px
-     *
-     * level * 3 = 24 px por nivel.
-     */
     return level * 3;
   }
 
 
   return (
-
     <Container
       maxWidth="md"
-
       sx={{
         marginTop: 4,
         marginBottom: 4,
       }}
     >
 
-      {/*
-       * =====================================================
-       * HEADER
-       * =====================================================
-       */}
+      {/* HEADER */}
       <Box
         sx={{
           display: "flex",
@@ -309,15 +258,11 @@ function App() {
           marginBottom: 3,
         }}
       >
-
         <LibertyaLogo width={190} />
-
 
         <Typography
           variant="h6"
-
           color="text.secondary"
-
           sx={{
             borderLeft: 1,
             borderColor: "divider",
@@ -327,10 +272,6 @@ function App() {
           Dynamic UI
         </Typography>
 
-
-        {/*
-         * Usuario + logout.
-         */}
         <Box
           sx={{
             marginLeft: "auto",
@@ -356,37 +297,34 @@ function App() {
             Salir
           </Button>
         </Box>
-
       </Box>
 
 
-      {/*
-       * =====================================================
-       * SELECTOR DE VENTANA
-       * =====================================================
-       */}
-      <WindowSelector
-        value={
-          windowId
-        }
-
-        onChange={
-          setWindowId
-        }
+      {/* SELECTOR DE PERFIL */}
+      <RoleSelector
+        value={roleId}
+        onChange={handleRoleChange}
       />
 
 
-      {/*
-       * =====================================================
-       * VENTANA SELECCIONADA
-       * =====================================================
-       */}
+      {/* SELECTOR DE VENTANA */}
+      {roleId !== "" && (
+        <Box sx={{ marginTop: 2 }}>
+          <WindowSelector
+            key={roleId}
+            value={windowId}
+            onChange={setWindowId}
+          />
+        </Box>
+      )}
+
+
+      {/* VENTANA SELECCIONADA */}
       {windowSchema && (
         <>
 
           <Typography
             variant="h5"
-
             sx={{
               marginTop: 3,
             }}
@@ -396,7 +334,6 @@ function App() {
 
 
           {windowSchema.description && (
-
             <Typography
               sx={{
                 marginTop: 1,
@@ -404,37 +341,16 @@ function App() {
             >
               {windowSchema.description}
             </Typography>
-
           )}
 
 
-          {/*
-           * =================================================
-           * NAVEGACIÓN JERÁRQUICA DE TABS
-           * =================================================
-           *
-           * Inspirada en la jerarquía del cliente Swing,
-           * pero ubicada arriba del formulario.
-           *
-           * Nivel 0
-           *   Nivel 1
-           *     Nivel 2
-           */}
           <Paper
             variant="outlined"
-
             sx={{
               marginTop: 3,
               marginBottom: 3,
-
-              /*
-               * Si la ventana tiene muchas pestañas,
-               * se usa scroll vertical.
-               */
               maxHeight: 360,
-
-              overflowY:
-                "auto",
+              overflowY: "auto",
             }}
           >
 
@@ -450,40 +366,23 @@ function App() {
                 ) => {
 
                   const active =
-                    index ===
-                    activeTab;
-
+                    index === activeTab;
 
                   const level =
                     tab.tablevel ?? 0;
 
 
                   return (
-
                     <ListItemButton
-                      key={
-                        tab.ad_tab_id
-                      }
-
-                      selected={
-                        active
-                      }
-
+                      key={tab.ad_tab_id}
+                      selected={active}
                       onClick={() =>
-                        setActiveTab(
-                          index
-                        )
+                        setActiveTab(index)
                       }
-
                       sx={{
-                        /*
-                         * Indentación jerárquica.
-                         */
                         paddingLeft:
                           1.5 +
-                          getTabIndent(
-                            tab
-                          ),
+                          getTabIndent(tab),
 
                         paddingTop:
                           level === 0
@@ -495,16 +394,9 @@ function App() {
                             ? 0.8
                             : 0.35,
 
-                        borderRadius:
-                          1,
+                        borderRadius: 1,
+                        marginY: 0.15,
 
-                        marginY:
-                          0.15,
-
-                        /*
-                         * Las tabs raíz tienen un fondo
-                         * apenas distinto.
-                         */
                         ...(
                           level === 0 &&
                           !active
@@ -517,41 +409,25 @@ function App() {
                       }}
                     >
 
-                      {/*
-                       * Indicador visual de jerarquía.
-                       */}
                       {level > 0 && (
-
                         <Box
                           component="span"
-
                           sx={{
-                            marginRight:
-                              1,
-
-                            color:
-                              "text.secondary",
-
-                            fontSize:
-                              "0.8rem",
+                            marginRight: 1,
+                            color: "text.secondary",
+                            fontSize: "0.8rem",
                           }}
                         >
                           └─
                         </Box>
-
                       )}
 
 
                       <ListItemText
-                        primary={
-                          tab.name
-                        }
-
+                        primary={tab.name}
                         slotProps={{
                           primary: {
-
                             sx: {
-
                               fontWeight:
                                 active
                                   ? 600
@@ -569,7 +445,6 @@ function App() {
                       />
 
                     </ListItemButton>
-
                   );
                 }
               )}
@@ -579,35 +454,14 @@ function App() {
           </Paper>
 
 
-          {/*
-           * =================================================
-           * CONTENIDO DE LA TAB ACTIVA
-           * =================================================
-           */}
           {selectedTab && (
-
             <DynamicTab
-              key={
-                selectedTab.ad_tab_id
-              }
-
-              tab={
-                selectedTab
-              }
-
-              parentTab={
-                parentTab
-              }
-
-              parentRecord={
-                parentRecord
-              }
-
-              onRecordChange={
-                handleRecordChange
-              }
+              key={selectedTab.ad_tab_id}
+              tab={selectedTab}
+              parentTab={parentTab}
+              parentRecord={parentRecord}
+              onRecordChange={handleRecordChange}
             />
-
           )}
 
         </>
