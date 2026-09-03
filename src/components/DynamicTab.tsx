@@ -926,43 +926,62 @@ export default function DynamicTab({
   }, [tab, page, parentRecord, isNewRecord, refreshToken]);
 
 
-  return (
-    <Box sx={{ marginTop: 4 }}>
-      <Typography variant="h6" gutterBottom>
-        {tab.name}
-      </Typography>
+    return (
+    <Box
+      sx={{
+        height: "100%",
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
 
-      <Typography variant="body2">
-        tabla: {tab.tablename}
-      </Typography>
-
-      <Typography variant="body2">
-        endpoint: {tab.data_endpoint ?? "sin endpoint"}
-      </Typography>
-
-      {tab.parent_ad_tab_id !== undefined && (
-        <Typography variant="body2">
-          parent tab: {tab.parent_ad_tab_id}
-          {tab.link_columnname ? ` — link: ${tab.link_columnname}` : ""}
+      {/* CABECERA DE LA PESTAÑA */}
+      <Box
+        sx={{
+          flexShrink: 0,
+        }}
+      >
+        <Typography variant="h6" gutterBottom>
+          {tab.name}
         </Typography>
-      )}
 
-      {tab.isreadonly && (
-        <Alert severity="info" sx={{ marginTop: 2 }}>
-          Esta pestaña es de solo lectura.
-        </Alert>
-      )}
+        <Typography variant="body2">
+          tabla: {tab.tablename}
+        </Typography>
 
-      {!tab.data_endpoint && (
-        <Alert severity="warning" sx={{ marginTop: 2 }}>
-          No existe un endpoint REST configurado para la tabla {tab.tablename}.
-        </Alert>
-      )}
+        <Typography variant="body2">
+          endpoint: {tab.data_endpoint ?? "sin endpoint"}
+        </Typography>
+
+        {tab.parent_ad_tab_id !== undefined && (
+          <Typography variant="body2">
+            parent tab: {tab.parent_ad_tab_id}
+            {tab.link_columnname ? ` — link: ${tab.link_columnname}` : ""}
+          </Typography>
+        )}
+
+        {tab.isreadonly && (
+          <Alert severity="info" sx={{ marginTop: 2 }}>
+            Esta pestaña es de solo lectura.
+          </Alert>
+        )}
+
+        {!tab.data_endpoint && (
+          <Alert severity="warning" sx={{ marginTop: 2 }}>
+            No existe un endpoint REST configurado para la tabla {tab.tablename}.
+          </Alert>
+        )}
+      </Box>
+
 
       {tab.data_endpoint && (
         <>
+
+          {/* BOTONERA DE NAVEGACIÓN / CRUD */}
           <Box
             sx={{
+              flexShrink: 0,
               marginTop: 1,
               marginBottom: 2,
               display: "flex",
@@ -1012,7 +1031,6 @@ export default function DynamicTab({
                 Editar
               </Button>
 
-
               <Button
                 onClick={handleDeleteRecord}
                 disabled={
@@ -1025,7 +1043,6 @@ export default function DynamicTab({
               >
                 Eliminar
               </Button>
-
 
               {isNewRecord && (
                 <>
@@ -1076,24 +1093,42 @@ export default function DynamicTab({
             </Typography>
           </Box>
 
-          {saveError && (
-            <Alert severity="error" sx={{ marginBottom: 2 }}>
-              {saveError}
-            </Alert>
-          )}
 
-          {saveMessage && (
-            <Alert severity="success" sx={{ marginBottom: 2 }}>
-              {saveMessage}
-            </Alert>
-          )}
+          {/* MENSAJES CRUD */}
+          <Box sx={{ flexShrink: 0 }}>
+            {saveError && (
+              <Alert severity="error" sx={{ marginBottom: 2 }}>
+                {saveError}
+              </Alert>
+            )}
 
-          {[...tab.fields]
-            .filter((field) => field.isdisplayed !== false)
-            .sort((a, b) => a.seqno - b.seqno)
-            .map(renderField)}
+            {saveMessage && (
+              <Alert severity="success" sx={{ marginBottom: 2 }}>
+                {saveMessage}
+              </Alert>
+            )}
+          </Box>
+
+
+          {/* CAMPOS: ÚNICA ZONA SCROLLEABLE */}
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              paddingRight: 1,
+              paddingBottom: 2,
+            }}
+          >
+            {[...tab.fields]
+              .filter((field) => field.isdisplayed !== false)
+              .sort((a, b) => a.seqno - b.seqno)
+              .map(renderField)}
+          </Box>
+
         </>
       )}
+
     </Box>
   );
-}
+}  

@@ -133,9 +133,6 @@ function App() {
     return (
       <Login
         onLogin={() => {
-          /*
-           * Cada login nuevo comienza sin contexto operativo.
-           */
           clearRole();
 
           setRoleId("");
@@ -198,10 +195,6 @@ function App() {
         role.name
       );
 
-      /*
-       * El nuevo perfil puede cambiar permisos incluso
-       * si una misma ventana existe en ambos perfiles.
-       */
       setRoleId(role.ad_role_id);
       setWindowId("");
       setWindowSchema(null);
@@ -236,16 +229,20 @@ function App() {
     const level =
       tab.tablevel ?? 0;
 
-    return level * 3;
+    return level * 2;
   }
 
 
   return (
     <Container
-      maxWidth="md"
+      maxWidth="xl"
       sx={{
-        marginTop: 4,
-        marginBottom: 4,
+        height: "100vh",
+        paddingTop: 2,
+        paddingBottom: 2,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
       }}
     >
 
@@ -321,7 +318,14 @@ function App() {
 
       {/* VENTANA SELECCIONADA */}
       {windowSchema && (
-        <>
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
 
           <Typography
             variant="h5"
@@ -337,6 +341,7 @@ function App() {
             <Typography
               sx={{
                 marginTop: 1,
+                marginBottom: 3,
               }}
             >
               {windowSchema.description}
@@ -344,127 +349,149 @@ function App() {
           )}
 
 
-          <Paper
-            variant="outlined"
+          {/* ÁRBOL + FORMULARIO */}
+          <Box
             sx={{
-              marginTop: 3,
-              marginBottom: 3,
-              maxHeight: 360,
-              overflowY: "auto",
+              flex: 1,
+              minHeight: 0,
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "260px minmax(0, 1fr)",
+              },
+              gap: 3,
+              alignItems: "stretch",
             }}
           >
 
-            <List
-              disablePadding
-              dense
+            {/* ÁRBOL DE PESTAÑAS */}
+            <Paper
+              variant="outlined"
+              sx={{
+                minHeight: 0,
+                overflowY: "auto",
+              }}
             >
+              <List
+                disablePadding
+                dense
+              >
+                {windowSchema.tabs.map(
+                  (
+                    tab,
+                    index
+                  ) => {
 
-              {windowSchema.tabs.map(
-                (
-                  tab,
-                  index
-                ) => {
+                    const active =
+                      index === activeTab;
 
-                  const active =
-                    index === activeTab;
-
-                  const level =
-                    tab.tablevel ?? 0;
-
-
-                  return (
-                    <ListItemButton
-                      key={tab.ad_tab_id}
-                      selected={active}
-                      onClick={() =>
-                        setActiveTab(index)
-                      }
-                      sx={{
-                        paddingLeft:
-                          1.5 +
-                          getTabIndent(tab),
-
-                        paddingTop:
-                          level === 0
-                            ? 0.8
-                            : 0.35,
-
-                        paddingBottom:
-                          level === 0
-                            ? 0.8
-                            : 0.35,
-
-                        borderRadius: 1,
-                        marginY: 0.15,
-
-                        ...(
-                          level === 0 &&
-                          !active
-                            ? {
-                                backgroundColor:
-                                  "action.hover",
-                              }
-                            : {}
-                        ),
-                      }}
-                    >
-
-                      {level > 0 && (
-                        <Box
-                          component="span"
-                          sx={{
-                            marginRight: 1,
-                            color: "text.secondary",
-                            fontSize: "0.8rem",
-                          }}
-                        >
-                          └─
-                        </Box>
-                      )}
+                    const level =
+                      tab.tablevel ?? 0;
 
 
-                      <ListItemText
-                        primary={tab.name}
-                        slotProps={{
-                          primary: {
-                            sx: {
-                              fontWeight:
-                                active
-                                  ? 600
-                                  : level === 0
-                                  ? 500
-                                  : 400,
+                    return (
+                      <ListItemButton
+                        key={tab.ad_tab_id}
+                        selected={active}
+                        onClick={() =>
+                          setActiveTab(index)
+                        }
+                        sx={{
+                          paddingLeft:
+                            1.5 +
+                            getTabIndent(tab),
 
-                              fontSize:
-                                level === 0
-                                  ? "0.95rem"
-                                  : "0.9rem",
-                            },
-                          },
+                          paddingTop:
+                            level === 0
+                              ? 0.8
+                              : 0.35,
+
+                          paddingBottom:
+                            level === 0
+                              ? 0.8
+                              : 0.35,
+
+                          borderRadius: 1,
+                          marginY: 0.15,
+
+                          ...(
+                            level === 0 &&
+                            !active
+                              ? {
+                                  backgroundColor:
+                                    "action.hover",
+                                }
+                              : {}
+                          ),
                         }}
-                      />
+                      >
 
-                    </ListItemButton>
-                  );
-                }
+                        {level > 0 && (
+                          <Box
+                            component="span"
+                            sx={{
+                              marginRight: 1,
+                              color: "text.secondary",
+                              fontSize: "0.8rem",
+                            }}
+                          >
+                            └─
+                          </Box>
+                        )}
+
+
+                        <ListItemText
+                          primary={tab.name}
+                          slotProps={{
+                            primary: {
+                              sx: {
+                                fontWeight:
+                                  active
+                                    ? 600
+                                    : level === 0
+                                    ? 500
+                                    : 400,
+
+                                fontSize:
+                                  level === 0
+                                    ? "0.95rem"
+                                    : "0.9rem",
+                              },
+                            },
+                          }}
+                        />
+
+                      </ListItemButton>
+                    );
+                  }
+                )}
+
+              </List>
+            </Paper>
+
+
+            {/* CONTENIDO DE LA PESTAÑA */}
+            <Box
+              sx={{
+                minWidth: 0,
+                minHeight: 0,
+                overflow: "hidden",
+              }}
+            >
+              {selectedTab && (
+                <DynamicTab
+                  key={selectedTab.ad_tab_id}
+                  tab={selectedTab}
+                  parentTab={parentTab}
+                  parentRecord={parentRecord}
+                  onRecordChange={handleRecordChange}
+                />
               )}
+            </Box>
 
-            </List>
+          </Box>
 
-          </Paper>
-
-
-          {selectedTab && (
-            <DynamicTab
-              key={selectedTab.ad_tab_id}
-              tab={selectedTab}
-              parentTab={parentTab}
-              parentRecord={parentRecord}
-              onRecordChange={handleRecordChange}
-            />
-          )}
-
-        </>
+        </Box>
       )}
 
     </Container>
