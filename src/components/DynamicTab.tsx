@@ -188,7 +188,7 @@ export default function DynamicTab({
 
   const [record, setRecord] = useState<Record<string, unknown>>({});
   const [page, setPage] = useState(1);
-  const [hasNext, setHasNext] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -868,7 +868,7 @@ export default function DynamicTab({
 
     if (!tab.data_endpoint) {
       setRecord({});
-      setHasNext(false);
+      setTotalCount(0);
       onRecordChange(tab.ad_tab_id, null);
       return;
     }
@@ -884,7 +884,7 @@ export default function DynamicTab({
         !tab.link_columnname
       ) {
         setRecord({});
-        setHasNext(false);
+        setTotalCount(0);
         onRecordChange(tab.ad_tab_id, null);
         return;
       }
@@ -893,12 +893,12 @@ export default function DynamicTab({
     }
 
     getRecord(tab.data_endpoint, page, filter)
-      .then((result) => {
-        if (result === null) {
-          setHasNext(false);
+      .then(({ record: result, totalCount }) => {
+        setTotalCount(totalCount);
 
-          if (page > 1) {
-            setPage((current) => current - 1);
+        if (result === null) {
+          if (totalCount > 0 && page > totalCount) {
+            setPage(totalCount);
           } else {
             setRecord({});
             onRecordChange(tab.ad_tab_id, null);
@@ -909,7 +909,6 @@ export default function DynamicTab({
 
         setRecord(result);
         setOriginalRecord({ ...result });
-        setHasNext(true);
         onRecordChange(tab.ad_tab_id, result);
       })
       .catch((error) => {
@@ -919,7 +918,7 @@ export default function DynamicTab({
         );
 
         setRecord({});
-        setHasNext(false);
+        setTotalCount(0);
         onRecordChange(tab.ad_tab_id, null);
       });
 
@@ -990,6 +989,14 @@ export default function DynamicTab({
             }}
           >
             <ButtonGroup variant="outlined" size="small">
+
+            <Button
+              onClick={() => setPage(1)}
+              disabled={isNewRecord || isEditing || page === 1 || totalCount === 0}
+            >
+              |← Primero
+            </Button>
+
               <Button
                 onClick={() =>
                   setPage((current) => Math.max(1, current - 1))
@@ -1001,9 +1008,21 @@ export default function DynamicTab({
 
               <Button
                 onClick={() => setPage((current) => current + 1)}
-                disabled={isNewRecord || isEditing || !hasNext}
+                disabled={isNewRecord || isEditing || totalCount === 0 || page >= totalCount}
               >
                 Siguiente →
+              </Button>
+
+              <Button
+                onClick={() => setPage(totalCount)}
+                disabled={
+                  isNewRecord ||
+                  isEditing ||
+                  totalCount === 0 ||
+                  page >= totalCount
+                }
+              >
+                Último →|
               </Button>
 
               <Button
@@ -1088,8 +1107,10 @@ export default function DynamicTab({
               {isNewRecord
                 ? "Nuevo registro"
                 : isEditing
-                ? `Editando registro ${page}`
-                : `Registro ${page}`}
+                ? `Editando registro ${page} de ${totalCount}`
+                : totalCount > 0
+                ? `Registro ${page} de ${totalCount}`
+                : "Sin registros"}
             </Typography>
           </Box>
 

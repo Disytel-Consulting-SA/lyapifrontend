@@ -32,6 +32,10 @@ export interface RoleOption {
   name: string;
 }
 
+export interface RecordResult {
+  record: Record<string, unknown> | null;
+  totalCount: number;
+}
 
 /**
  * Obtiene un JWT de Libertya REST API.
@@ -307,53 +311,39 @@ export async function getRecord(
   dataEndpoint: string,
   page: number,
   filter?: string
-): Promise<Record<string, unknown> | null> {
+): Promise<RecordResult> {
 
-  const params =
-    new URLSearchParams();
+  const params = new URLSearchParams();
 
-
-  params.set(
-    "limit",
-    "1"
-  );
-
-  params.set(
-    "page",
-    String(page)
-  );
-
+  params.set("limit", "1");
+  params.set("page", String(page));
+  params.set("includeTotal", "true");
 
   if (filter) {
-
-    params.set(
-      "filter",
-      filter
-    );
+    params.set("filter", filter);
   }
 
-
-  const response =
-    await authenticatedFetch(
-      `${BASE_URL}${dataEndpoint}?${params.toString()}`
-    );
-
+  const response = await authenticatedFetch(
+    `${BASE_URL}${dataEndpoint}?${params.toString()}`
+  );
 
   if (!response.ok) {
-
     throw new Error(
       `Error recuperando datos desde ${dataEndpoint}: ${response.status}`
     );
   }
 
+  const records = await response.json();
 
-  const records =
-    await response.json();
+  const totalCountHeader = response.headers.get("X-Total-Count");
+  const totalCount = totalCountHeader !== null
+    ? Number(totalCountHeader)
+    : 0;
 
-
-  return records.length > 0
-    ? records[0]
-    : null;
+  return {
+    record: records.length > 0 ? records[0] : null,
+    totalCount,
+  };
 }
 
 
