@@ -43,6 +43,7 @@ import type { FieldVisualState } from "../styles/fieldStateStyles";
 
 import SearchField from "./SearchField";
 
+import RecordSearchDialog from "./RecordSearchDialog";
 
 interface Props {
   tab: WindowSchemaTab;
@@ -208,6 +209,8 @@ export default function DynamicTab({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchFilter, setSearchFilter] = useState("");
 
   function getFieldValue(field: WindowSchemaField): unknown {
     return record[field.columnname.toLowerCase()];
@@ -363,6 +366,53 @@ async function reevaluateRecordState(
   }
 }
 
+
+function escapeFilterValue(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+function handleSearchRecords(criteria: Record<string, string>) {
+  const filters = Object.entries(criteria)
+    .filter(([, value]) => value.trim() !== "")
+    .map(([columnName, value]) => {
+      const field = tab.fields.find(
+        (candidate) => candidate.columnname === columnName
+      );
+
+      const escapedValue = escapeFilterValue(value.trim());
+      const type = field?.reference?.type;
+
+      if (
+        type === "integer" ||
+        type === "number" ||
+        type === "amount" ||
+        type === "quantity" ||
+        type === "costprice"
+      ) {
+        return `${columnName}=${escapedValue}`;
+      }
+
+      if (
+        type === "boolean" ||
+        type === "list" ||
+        type === "lookup" ||
+        type === "search" ||
+        type === "date" ||
+        type === "datetime" ||
+        type === "time"
+      ) {
+        return `${columnName}='${escapedValue}'`;
+      }
+
+      return `${columnName} ILIKE '%${escapedValue}%'`;
+    });
+
+  const filter = filters.join(" and ");
+
+  setSearchFilter(filter);
+  setPage(1);
+  setSearchOpen(false);
+}
 
 async function handleNewRecord() {
   setSaveError(null);
@@ -1023,7 +1073,7 @@ async function handleNewRecord() {
       return;
     }
 
-    let filter: string | undefined;
+    const filters: string[] = [];
 
     if (tab.parent_ad_tab_id !== undefined) {
       const parentValue = getParentKeyValue();
@@ -1040,8 +1090,15 @@ async function handleNewRecord() {
         return;
       }
 
-      filter = `${tab.link_columnname}=${parentValue}`;
+      filters.push(`${tab.link_columnname}=${parentValue}`);
     }
+
+    if (searchFilter)
+      filters.push(searchFilter);
+
+    const filter = filters.length > 0
+      ? filters.join(" and ")
+      : undefined;
 
     getRecord(tab.data_endpoint, page, filter)
       .then(({ record: result, totalCount }) => {
@@ -1076,7 +1133,7 @@ async function handleNewRecord() {
         onRecordChange(tab.ad_tab_id, null);
       });
 
-  }, [tab, page, parentRecord, isNewRecord, refreshToken]);
+  }, [tab, page, parentRecord, isNewRecord, refreshToken, searchFilter]);
 
 
     return (
@@ -1217,6 +1274,32 @@ async function handleNewRecord() {
                 Eliminar
               </Button>
 
+              <Button
+                onClick={() => setSearchOpen(true)}
+                disabled={
+                  isNewRecord ||
+                  isEditing ||
+                  saving
+                }
+              >
+                Buscar
+              </Button>
+
+              <Button
+                onClick={() => {
+                  setSearchFilter("");
+                  setPage(1);
+                }}
+                disabled={
+                  isNewRecord ||
+                  isEditing ||
+                  saving ||
+                  searchFilter === ""
+                }
+              >
+                Limpiar búsqueda
+              </Button>
+
               {isNewRecord && (
                 <>
                   <Button
@@ -1266,6 +1349,12 @@ async function handleNewRecord() {
                 ? `Registro ${page} de ${totalCount}`
                 : "Sin registros"}
             </Typography>
+
+            {searchFilter && (
+              <Typography variant="body2">
+                Búsqueda activa
+              </Typography>
+            )}
           </Box>
 
 
@@ -1303,6 +1392,13 @@ async function handleNewRecord() {
 
         </>
       )}
+
+      <RecordSearchDialog
+        open={searchOpen}
+        tab={tab}
+        onClose={() => setSearchOpen(false)}
+        onSearch={handleSearchRecords}
+      />
 
     </Box>
   );

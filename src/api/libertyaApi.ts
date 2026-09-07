@@ -37,6 +37,11 @@ export interface RecordResult {
   totalCount: number;
 }
 
+export interface RecordSearchResult {
+  records: Record<string, unknown>[];
+  totalCount: number;
+}
+
 export interface WindowRecordFieldState {
   ad_field_id: number;
   columnname: string;
@@ -431,6 +436,52 @@ export async function getRecord(
   };
 }
 
+
+
+/**
+ * Recupera múltiples registros aplicando un filtro.
+ *
+ * Se utiliza para búsquedas dentro de ventanas dinámicas.
+ */
+export async function searchRecords(
+  dataEndpoint: string,
+  filter: string,
+  limit = 50,
+  page = 1
+): Promise<RecordSearchResult> {
+
+  const params = new URLSearchParams();
+
+  params.set("limit", String(limit));
+  params.set("page", String(page));
+  params.set("includeTotal", "true");
+
+  if (filter.trim() !== "") {
+    params.set("filter", filter);
+  }
+
+  const response = await authenticatedFetch(
+    `${BASE_URL}${dataEndpoint}?${params.toString()}`
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Error buscando registros en ${dataEndpoint}: ${response.status}`
+    );
+  }
+
+  const records = await response.json();
+
+  const totalCountHeader = response.headers.get("X-Total-Count");
+  const totalCount = totalCountHeader !== null
+    ? Number(totalCountHeader)
+    : records.length;
+
+  return {
+    records,
+    totalCount,
+  };
+}
 
 
 /**
