@@ -19,6 +19,7 @@ import {
 import {
   createRecord,
   deleteRecord,
+  evaluateRecordState,
   getLookupValues,
   getRecord,
   getNewRecordState,
@@ -213,17 +214,20 @@ export default function DynamicTab({
   }
 
   function getFieldState(field: WindowSchemaField): WindowRecordFieldState | undefined {
-    if (!isNewRecord)
-      return undefined;
-
     return fieldStates.find((state) => state.ad_field_id === field.ad_field_id);
   }
 
   function setFieldValue(field: WindowSchemaField, value: unknown) {
-    setRecord((current) => ({
-      ...current,
-      [field.columnname.toLowerCase()]: value,
-    }));
+    setRecord((current) => {
+      const updatedRecord = {
+        ...current,
+        [field.columnname.toLowerCase()]: value,
+      };
+
+      void reevaluateRecordState(updatedRecord, field.columnname);
+
+      return updatedRecord;
+    });
   }
 
 
@@ -233,25 +237,29 @@ export default function DynamicTab({
 
 
   function isFieldEditable(field: WindowSchemaField): boolean {
-    if (isNewRecord) {
-      const state = getFieldState(field);
+    const state = getFieldState(field);
 
-      if (state)
-        return !state.readonly;
+    if (state)
+      return !state.readonly && (isNewRecord || isEditing);
 
+    if (isNewRecord)
       return false;
-    }
 
     return !isMetadataReadOnly(field) && isEditing;
   }
 
-
   function getFieldVisualState(field: WindowSchemaField): FieldVisualState {
-    if (isNewRecord) {
-      const state = getFieldState(field);
+    const state = getFieldState(field);
 
-      return state && !state.readonly ? "edit" : "readonly";
+    if (state) {
+      if (state.readonly)
+        return "readonly";
+
+      return isNewRecord || isEditing ? "edit" : "view";
     }
+
+    if (isNewRecord)
+      return "readonly";
 
     if (isMetadataReadOnly(field))
       return "readonly";
@@ -306,6 +314,56 @@ export default function DynamicTab({
 }
 
 
+function buildRecordStateValues(
+  currentRecord: Record<string, unknown>
+): Record<string, string> {
+
+  const values: Record<string, string> = {};
+
+  for (const field of tab.fields) {
+    const value = currentRecord[field.columnname.toLowerCase()];
+
+    if (value === undefined || value === null)
+      continue;
+
+    if (typeof value === "boolean") {
+      values[field.columnname] = value ? "Y" : "N";
+    } else {
+      values[field.columnname] = String(value);
+    }
+  }
+
+  return values;
+}
+
+
+
+async function reevaluateRecordState(
+  currentRecord: Record<string, unknown>,
+  changedColumn?: string
+) {
+  try {
+    const state = await evaluateRecordState(
+      tab.ad_tab_id,
+      {
+        values: buildRecordStateValues(currentRecord),
+        parent_values: buildParentValues(),
+        changed_columns: changedColumn ? [changedColumn] : undefined,
+        inserting: isNewRecord,
+      }
+    );
+
+    setFieldStates(state.fields);
+
+  } catch (error) {
+    console.error(
+      `Error reevaluando estado para AD_Tab_ID=${tab.ad_tab_id}`,
+      error
+    );
+  }
+}
+
+
 async function handleNewRecord() {
   setSaveError(null);
   setSaveMessage(null);
@@ -354,8 +412,12 @@ async function handleNewRecord() {
 
 
   function handleCancelEdit() {
-    if (originalRecord)
-      setRecord({ ...originalRecord });
+    if (originalRecord) {
+      const restoredRecord = { ...originalRecord };
+
+      setRecord(restoredRecord);
+      void reevaluateRecordState(restoredRecord);
+    }
 
     setSaveError(null);
     setIsEditing(false);
@@ -490,6 +552,8 @@ async function handleNewRecord() {
       setOriginalRecord({ ...updatedRecord });
       onRecordChange(tab.ad_tab_id, updatedRecord);
 
+      void reevaluateRecordState(updatedRecord);
+
       setSaveMessage("Registro actualizado correctamente.");
       setIsEditing(false);
 
@@ -599,16 +663,17 @@ async function handleNewRecord() {
 
 
   function renderField(field: WindowSchemaField) {
-    if (isNewRecord) {
-      const state = getFieldState(field);
+    const state = getFieldState(field);
 
-      if (!state || !state.displayed)
-        return null;
-    }
+    if (state && !state.displayed)
+      return null;
+
+    if (isNewRecord && !state)
+      return null;
     const rawValue = getFieldValue(field);
     const editable = isFieldEditable(field);
     const visualState = getFieldVisualState(field);
-    const effectiveReadOnly = !editable && (isNewRecord || isMetadataReadOnly(field));
+    const effectiveReadOnly = !editable && (state?.readonly === true || isNewRecord || isMetadataReadOnly(field));
 
 
     if (field.reference?.type === "button") {
@@ -952,6 +1017,7 @@ async function handleNewRecord() {
 
     if (!tab.data_endpoint) {
       setRecord({});
+      setFieldStates([]);
       setTotalCount(0);
       onRecordChange(tab.ad_tab_id, null);
       return;
@@ -968,6 +1034,7 @@ async function handleNewRecord() {
         !tab.link_columnname
       ) {
         setRecord({});
+        setFieldStates([]);
         setTotalCount(0);
         onRecordChange(tab.ad_tab_id, null);
         return;
@@ -985,6 +1052,7 @@ async function handleNewRecord() {
             setPage(totalCount);
           } else {
             setRecord({});
+            setFieldStates([]);
             onRecordChange(tab.ad_tab_id, null);
           }
 
@@ -994,6 +1062,7 @@ async function handleNewRecord() {
         setRecord(result);
         setOriginalRecord({ ...result });
         onRecordChange(tab.ad_tab_id, result);
+        void reevaluateRecordState(result);
       })
       .catch((error) => {
         console.error(
@@ -1002,6 +1071,7 @@ async function handleNewRecord() {
         );
 
         setRecord({});
+        setFieldStates([]);
         setTotalCount(0);
         onRecordChange(tab.ad_tab_id, null);
       });

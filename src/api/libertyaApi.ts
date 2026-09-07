@@ -53,6 +53,7 @@ export interface WindowRecordStateRequest {
   values?: Record<string, string>;
   parent_values?: Record<string, string>;
   changed_columns?: string[];
+  inserting?: boolean;
 }
 
 
@@ -348,6 +349,38 @@ export async function getNewRecordState(
   if (!response.ok) {
     throw new Error(
       `Error construyendo estado inicial para pestaña ${tabId}: ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
+
+/**
+ * Reevalúa el estado efectivo de un registro dinámico.
+ *
+ * El backend resuelve DisplayLogic, ReadOnlyLogic
+ * y permisos efectivos utilizando los valores actuales.
+ */
+export async function evaluateRecordState(
+  tabId: number,
+  request: WindowRecordStateRequest
+): Promise<WindowRecordState> {
+
+  const response = await authenticatedFetch(
+    `${BASE_URL}/v1.0/tabs/${tabId}/evaluate`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Error reevaluando estado para pestaña ${tabId}: ${response.status}`
     );
   }
 
