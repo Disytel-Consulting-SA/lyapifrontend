@@ -44,6 +44,7 @@ import type {
 type CurrentRecords =
   Record<number, Record<string, unknown> | null>;
 
+type CurrentPages = Record<number, number>;  
 
 function App() {
 
@@ -65,6 +66,8 @@ function App() {
   const [currentRecords, setCurrentRecords] =
     useState<CurrentRecords>({});
 
+  const [currentPages, setCurrentPages] =
+    useState<CurrentPages>({});
 
   /*
    * Escuchar vencimiento / invalidación de sesión.
@@ -76,6 +79,7 @@ function App() {
       setWindowSchema(null);
       setActiveTab(0);
       setCurrentRecords({});
+      setCurrentPages({});
       setAuthenticated(false);
     }
 
@@ -180,6 +184,13 @@ function App() {
         [tabId]: record,
       })
     );
+  }
+
+  function handlePageChange(tabId: number, page: number) {
+    setCurrentPages((current) => ({
+      ...current,
+      [tabId]: page,
+    }));
   }
 
 
@@ -487,6 +498,8 @@ function App() {
                   tab={selectedTab}
                   parentTab={parentTab}
                   parentRecord={parentRecord}
+                  initialPage={currentPages[selectedTab.ad_tab_id] ?? 1}
+                  onPageChange={handlePageChange}
                   onRecordChange={handleRecordChange}
                 />
               )}

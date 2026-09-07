@@ -47,11 +47,14 @@ interface Props {
   tab: WindowSchemaTab;
   parentTab?: WindowSchemaTab;
   parentRecord?: Record<string, unknown> | null;
+  initialPage: number;
 
   onRecordChange: (
     tabId: number,
     record: Record<string, unknown> | null
   ) => void;
+
+  onPageChange: (tabId: number, page: number) => void;
 }
 
 
@@ -185,11 +188,13 @@ export default function DynamicTab({
   tab,
   parentTab,
   parentRecord,
+  initialPage,
+  onPageChange,
   onRecordChange,
 }: Props) {
 
   const [record, setRecord] = useState<Record<string, unknown>>({});
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialPage);
   const [totalCount, setTotalCount] = useState(0);
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -207,6 +212,12 @@ export default function DynamicTab({
     return record[field.columnname.toLowerCase()];
   }
 
+  function getFieldState(field: WindowSchemaField): WindowRecordFieldState | undefined {
+    if (!isNewRecord)
+      return undefined;
+
+    return fieldStates.find((state) => state.ad_field_id === field.ad_field_id);
+  }
 
   function setFieldValue(field: WindowSchemaField, value: unknown) {
     setRecord((current) => ({
@@ -222,15 +233,30 @@ export default function DynamicTab({
 
 
   function isFieldEditable(field: WindowSchemaField): boolean {
-    return !isMetadataReadOnly(field) && (isNewRecord || isEditing);
+    if (isNewRecord) {
+      const state = getFieldState(field);
+
+      if (state)
+        return !state.readonly;
+
+      return false;
+    }
+
+    return !isMetadataReadOnly(field) && isEditing;
   }
 
 
   function getFieldVisualState(field: WindowSchemaField): FieldVisualState {
+    if (isNewRecord) {
+      const state = getFieldState(field);
+
+      return state && !state.readonly ? "edit" : "readonly";
+    }
+
     if (isMetadataReadOnly(field))
       return "readonly";
 
-    if (isNewRecord || isEditing)
+    if (isEditing)
       return "edit";
 
     return "view";
@@ -573,10 +599,16 @@ async function handleNewRecord() {
 
 
   function renderField(field: WindowSchemaField) {
+    if (isNewRecord) {
+      const state = getFieldState(field);
+
+      if (!state || !state.displayed)
+        return null;
+    }
     const rawValue = getFieldValue(field);
     const editable = isFieldEditable(field);
     const visualState = getFieldVisualState(field);
-    const metadataReadOnly = isMetadataReadOnly(field);
+    const effectiveReadOnly = !editable && (isNewRecord || isMetadataReadOnly(field));
 
 
     if (field.reference?.type === "button") {
@@ -620,7 +652,7 @@ async function handleNewRecord() {
                 marginTop: 0.75,
                 marginBottom: 0.25,
               },
-              getReadOnlyContainerSx(metadataReadOnly),
+              getReadOnlyContainerSx(effectiveReadOnly),
             ]}
           >
           <FormControlLabel
@@ -898,10 +930,15 @@ async function handleNewRecord() {
 
 
   useEffect(() => {
-    setPage(1);
+    onPageChange(tab.ad_tab_id, page);
+  }, [tab.ad_tab_id, page]);
+
+  useEffect(() => {
     setIsNewRecord(false);
     setIsEditing(false);
     setOriginalRecord(null);
+    if (tab.parent_ad_tab_id !== undefined)
+      setPage(1);
   }, [tab.ad_tab_id, parentRecord]);
 
 
