@@ -21,11 +21,12 @@ import {
   deleteRecord,
   getLookupValues,
   getRecord,
+  getNewRecordState,
   getRecordByKey,
   updateRecord,
 } from "../api/libertyaApi";
 
-import type { LookupValue } from "../api/libertyaApi";
+import type { LookupValue,  WindowRecordFieldState } from "../api/libertyaApi";
 import type { WindowSchemaField, WindowSchemaTab } from "../types/metadata";
 
 import {
@@ -34,6 +35,7 @@ import {
   validateCreateRecord,
   validateUpdateRecord,
 } from "../utils/recordPayload";
+
 
 import { getReadOnlyContainerSx, getFieldStateSx } from "../styles/fieldStateStyles";
 import type { FieldVisualState } from "../styles/fieldStateStyles";
@@ -191,6 +193,7 @@ export default function DynamicTab({
   const [totalCount, setTotalCount] = useState(0);
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [fieldStates, setFieldStates] = useState<WindowRecordFieldState[]>([]);
 
   const [originalRecord, setOriginalRecord] =
     useState<Record<string, unknown> | null>(null);
@@ -252,42 +255,68 @@ export default function DynamicTab({
   }
 
 
-  function createNewRecord(): Record<string, unknown> {
-    const newRecord: Record<string, unknown> = {};
-
-    /*
-     * Aplicar los defaults ya resueltos por el backend.
-     */
-    tab.fields.forEach((field) => {
-      if (field.defaultvalue !== undefined)
-        newRecord[field.columnname.toLowerCase()] = field.defaultvalue;
-    });
-
-    /*
-     * Para tabs detalle, propagar además el vínculo
-     * con el registro padre.
-     */
-    if (tab.parent_ad_tab_id !== undefined && tab.link_columnname) {
-      const parentValue = getParentKeyValue();
-
-      if (parentValue !== undefined && parentValue !== null)
-        newRecord[tab.link_columnname.toLowerCase()] = parentValue;
-    }
-
-    return newRecord;
+  function buildParentValues(): Record<string, string> | undefined {
+  if (
+    tab.parent_ad_tab_id === undefined ||
+    !parentTab ||
+    !parentRecord
+  ) {
+    return undefined;
   }
 
+  const keyField = parentTab.fields.find((field) => field.iskey);
 
-  function handleNewRecord() {
-    const newRecord = createNewRecord();
+  if (!keyField)
+    return undefined;
 
-    setSaveError(null);
-    setSaveMessage(null);
+  const parentValue = parentRecord[keyField.columnname.toLowerCase()];
+
+  if (parentValue === undefined || parentValue === null)
+    return undefined;
+
+  return {
+    [keyField.columnname]: String(parentValue),
+  };
+}
+
+
+async function handleNewRecord() {
+  setSaveError(null);
+  setSaveMessage(null);
+
+  try {
+    const state = await getNewRecordState(
+      tab.ad_tab_id,
+      {
+        parent_values: buildParentValues(),
+      }
+    );
+
+    const newRecord: Record<string, unknown> = {};
+
+    Object.entries(state.values).forEach(([columnName, value]) => {
+      newRecord[columnName.toLowerCase()] = value;
+    });
+
+    setFieldStates(state.fields);
     setIsNewRecord(true);
     setRecord(newRecord);
 
     onRecordChange(tab.ad_tab_id, newRecord);
+
+  } catch (error) {
+    console.error(
+      `Error construyendo nuevo registro para AD_Tab_ID=${tab.ad_tab_id}`,
+      error
+    );
+
+    setSaveError(
+      error instanceof Error
+        ? error.message
+        : "No fue posible inicializar el nuevo registro"
+    );
   }
+}
 
 
   function handleEditRecord() {

@@ -37,6 +37,25 @@ export interface RecordResult {
   totalCount: number;
 }
 
+export interface WindowRecordFieldState {
+  ad_field_id: number;
+  columnname: string;
+  displayed: boolean;
+  readonly: boolean;
+}
+
+export interface WindowRecordState {
+  values: Record<string, string>;
+  fields: WindowRecordFieldState[];
+}
+
+export interface WindowRecordStateRequest {
+  values?: Record<string, string>;
+  parent_values?: Record<string, string>;
+  changed_columns?: string[];
+}
+
+
 /**
  * Obtiene un JWT de Libertya REST API.
  *
@@ -298,6 +317,39 @@ export async function getWindowSchema(
     );
   }
 
+
+  return response.json();
+}
+
+
+/**
+ * Construye el estado inicial efectivo de un nuevo registro
+ * para una pestaña dinámica.
+ *
+ * El backend resuelve DefaultValue, DisplayLogic,
+ * ReadOnlyLogic y permisos efectivos.
+ */
+export async function getNewRecordState(
+  tabId: number,
+  request: WindowRecordStateRequest = {}
+): Promise<WindowRecordState> {
+
+  const response = await authenticatedFetch(
+    `${BASE_URL}/v1.0/tabs/${tabId}/new-record`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Error construyendo estado inicial para pestaña ${tabId}: ${response.status}`
+    );
+  }
 
   return response.json();
 }
