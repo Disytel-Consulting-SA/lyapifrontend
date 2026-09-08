@@ -27,8 +27,15 @@ import {
   updateRecord,
 } from "../api/libertyaApi";
 
-import type { LookupValue,  WindowRecordFieldState } from "../api/libertyaApi";
-import type { WindowSchemaField, WindowSchemaTab } from "../types/metadata";
+import type {
+  LookupValue,
+  WindowRecordFieldState,
+} from "../api/libertyaApi";
+
+import type {
+  WindowSchemaField,
+  WindowSchemaTab,
+} from "../types/metadata";
 
 import {
   buildCreatePayload,
@@ -37,13 +44,19 @@ import {
   validateUpdateRecord,
 } from "../utils/recordPayload";
 
+import {
+  getReadOnlyContainerSx,
+  getFieldStateSx,
+} from "../styles/fieldStateStyles";
 
-import { getReadOnlyContainerSx, getFieldStateSx } from "../styles/fieldStateStyles";
-import type { FieldVisualState } from "../styles/fieldStateStyles";
+import type {
+  FieldVisualState,
+} from "../styles/fieldStateStyles";
 
 import SearchField from "./SearchField";
-
 import RecordSearchDialog from "./RecordSearchDialog";
+import RecordGrid from "./RecordGrid";
+
 
 interface Props {
   tab: WindowSchemaTab;
@@ -198,9 +211,12 @@ export default function DynamicTab({
   const [record, setRecord] = useState<Record<string, unknown>>({});
   const [page, setPage] = useState(initialPage);
   const [totalCount, setTotalCount] = useState(0);
+
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [fieldStates, setFieldStates] = useState<WindowRecordFieldState[]>([]);
+
+  const [fieldStates, setFieldStates] =
+    useState<WindowRecordFieldState[]>([]);
 
   const [originalRecord, setOriginalRecord] =
     useState<Record<string, unknown> | null>(null);
@@ -208,57 +224,92 @@ export default function DynamicTab({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
   const [refreshToken, setRefreshToken] = useState(0);
+
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState("");
+
+  const [viewMode, setViewMode] =
+    useState<"form" | "grid">("form");
+
 
   function getFieldValue(field: WindowSchemaField): unknown {
     return record[field.columnname.toLowerCase()];
   }
 
-  function getFieldState(field: WindowSchemaField): WindowRecordFieldState | undefined {
-    return fieldStates.find((state) => state.ad_field_id === field.ad_field_id);
+
+  function getFieldState(
+    field: WindowSchemaField
+  ): WindowRecordFieldState | undefined {
+
+    return fieldStates.find(
+      (state) => state.ad_field_id === field.ad_field_id
+    );
   }
 
-  function setFieldValue(field: WindowSchemaField, value: unknown) {
+
+  function setFieldValue(
+    field: WindowSchemaField,
+    value: unknown
+  ) {
+
     setRecord((current) => {
       const updatedRecord = {
         ...current,
         [field.columnname.toLowerCase()]: value,
       };
 
-      void reevaluateRecordState(updatedRecord, field.columnname);
+      void reevaluateRecordState(
+        updatedRecord,
+        field.columnname
+      );
 
       return updatedRecord;
     });
   }
 
 
-  function isMetadataReadOnly(field: WindowSchemaField): boolean {
-    return tab.isreadonly === true || field.isreadonly === true;
+  function isMetadataReadOnly(
+    field: WindowSchemaField
+  ): boolean {
+
+    return tab.isreadonly === true ||
+      field.isreadonly === true;
   }
 
 
-  function isFieldEditable(field: WindowSchemaField): boolean {
+  function isFieldEditable(
+    field: WindowSchemaField
+  ): boolean {
+
     const state = getFieldState(field);
 
     if (state)
-      return !state.readonly && (isNewRecord || isEditing);
+      return !state.readonly &&
+        (isNewRecord || isEditing);
 
     if (isNewRecord)
       return false;
 
-    return !isMetadataReadOnly(field) && isEditing;
+    return !isMetadataReadOnly(field) &&
+      isEditing;
   }
 
-  function getFieldVisualState(field: WindowSchemaField): FieldVisualState {
+
+  function getFieldVisualState(
+    field: WindowSchemaField
+  ): FieldVisualState {
+
     const state = getFieldState(field);
 
     if (state) {
       if (state.readonly)
         return "readonly";
 
-      return isNewRecord || isEditing ? "edit" : "view";
+      return isNewRecord || isEditing
+        ? "edit"
+        : "view";
     }
 
     if (isNewRecord)
@@ -283,190 +334,334 @@ export default function DynamicTab({
       return undefined;
     }
 
-    const keyField = parentTab.fields.find((field) => field.iskey);
+    const keyField =
+      parentTab.fields.find(
+        (field) => field.iskey
+      );
 
     if (!keyField)
       return undefined;
 
-    return parentRecord[keyField.columnname.toLowerCase()];
+    return parentRecord[
+      keyField.columnname.toLowerCase()
+    ];
   }
 
 
-  function buildParentValues(): Record<string, string> | undefined {
-  if (
-    tab.parent_ad_tab_id === undefined ||
-    !parentTab ||
-    !parentRecord
+  function buildParentValues():
+    Record<string, string> | undefined {
+
+    if (
+      tab.parent_ad_tab_id === undefined ||
+      !parentTab ||
+      !parentRecord
+    ) {
+      return undefined;
+    }
+
+    const keyField =
+      parentTab.fields.find(
+        (field) => field.iskey
+      );
+
+    if (!keyField)
+      return undefined;
+
+    const parentValue =
+      parentRecord[
+        keyField.columnname.toLowerCase()
+      ];
+
+    if (
+      parentValue === undefined ||
+      parentValue === null
+    ) {
+      return undefined;
+    }
+
+    return {
+      [keyField.columnname]:
+        String(parentValue),
+    };
+  }
+
+
+  function buildRecordFilter():
+    string | undefined {
+
+    const filters: string[] = [];
+
+    if (
+      tab.parent_ad_tab_id !== undefined
+    ) {
+
+      const parentValue =
+        getParentKeyValue();
+
+      if (
+        parentValue === undefined ||
+        parentValue === null ||
+        !tab.link_columnname
+      ) {
+        return undefined;
+      }
+
+      filters.push(
+        `${tab.link_columnname}=${parentValue}`
+      );
+    }
+
+    if (searchFilter)
+      filters.push(searchFilter);
+
+    return filters.length > 0
+      ? filters.join(" and ")
+      : undefined;
+  }
+
+
+  function buildRecordStateValues(
+    currentRecord: Record<string, unknown>
+  ): Record<string, string> {
+
+    const values: Record<string, string> = {};
+
+    for (const field of tab.fields) {
+      const value =
+        currentRecord[
+          field.columnname.toLowerCase()
+        ];
+
+      if (
+        value === undefined ||
+        value === null
+      ) {
+        continue;
+      }
+
+      if (typeof value === "boolean") {
+        values[field.columnname] =
+          value ? "Y" : "N";
+      } else {
+        values[field.columnname] =
+          String(value);
+      }
+    }
+
+    return values;
+  }
+
+
+  async function reevaluateRecordState(
+    currentRecord: Record<string, unknown>,
+    changedColumn?: string
   ) {
-    return undefined;
-  }
 
-  const keyField = parentTab.fields.find((field) => field.iskey);
+    try {
+      const state =
+        await evaluateRecordState(
+          tab.ad_tab_id,
+          {
+            values:
+              buildRecordStateValues(
+                currentRecord
+              ),
 
-  if (!keyField)
-    return undefined;
+            parent_values:
+              buildParentValues(),
 
-  const parentValue = parentRecord[keyField.columnname.toLowerCase()];
+            changed_columns:
+              changedColumn
+                ? [changedColumn]
+                : undefined,
 
-  if (parentValue === undefined || parentValue === null)
-    return undefined;
+            inserting:
+              isNewRecord,
+          }
+        );
 
-  return {
-    [keyField.columnname]: String(parentValue),
-  };
-}
+      setFieldStates(state.fields);
 
-
-function buildRecordStateValues(
-  currentRecord: Record<string, unknown>
-): Record<string, string> {
-
-  const values: Record<string, string> = {};
-
-  for (const field of tab.fields) {
-    const value = currentRecord[field.columnname.toLowerCase()];
-
-    if (value === undefined || value === null)
-      continue;
-
-    if (typeof value === "boolean") {
-      values[field.columnname] = value ? "Y" : "N";
-    } else {
-      values[field.columnname] = String(value);
+    } catch (error) {
+      console.error(
+        `Error reevaluando estado para AD_Tab_ID=${tab.ad_tab_id}`,
+        error
+      );
     }
   }
 
-  return values;
-}
+
+  function escapeFilterValue(
+    value: string
+  ): string {
+
+    return value.replace(/'/g, "''");
+  }
 
 
+  function handleSearchRecords(
+    criteria: Record<string, string>
+  ) {
 
-async function reevaluateRecordState(
-  currentRecord: Record<string, unknown>,
-  changedColumn?: string
-) {
-  try {
-    const state = await evaluateRecordState(
+    const filters =
+      Object.entries(criteria)
+        .filter(
+          ([, value]) =>
+            value.trim() !== ""
+        )
+        .map(
+          ([columnName, value]) => {
+
+            const field =
+              tab.fields.find(
+                (candidate) =>
+                  candidate.columnname ===
+                  columnName
+              );
+
+            const escapedValue =
+              escapeFilterValue(
+                value.trim()
+              );
+
+            const type =
+              field?.reference?.type;
+
+            if (
+              type === "integer" ||
+              type === "number" ||
+              type === "amount" ||
+              type === "quantity" ||
+              type === "costprice"
+            ) {
+              return `${columnName}=${escapedValue}`;
+            }
+
+            if (
+              type === "boolean" ||
+              type === "list" ||
+              type === "lookup" ||
+              type === "search" ||
+              type === "date" ||
+              type === "datetime" ||
+              type === "time"
+            ) {
+              return `${columnName}='${escapedValue}'`;
+            }
+
+            return `${columnName} ILIKE '%${escapedValue}%'`;
+          }
+        );
+
+    const filter =
+      filters.join(" and ");
+
+    setSearchFilter(filter);
+    setPage(1);
+    setSearchOpen(false);
+  }
+
+
+  function handleGridSelectRecord(
+    selectedRecord: Record<string, unknown>,
+    recordPage: number
+  ) {
+
+    setRecord(selectedRecord);
+    setPage(recordPage);
+    setViewMode("form");
+
+    onPageChange(
       tab.ad_tab_id,
-      {
-        values: buildRecordStateValues(currentRecord),
-        parent_values: buildParentValues(),
-        changed_columns: changedColumn ? [changedColumn] : undefined,
-        inserting: isNewRecord,
-      }
+      recordPage
     );
 
-    setFieldStates(state.fields);
+    onRecordChange(
+      tab.ad_tab_id,
+      selectedRecord
+    );
 
-  } catch (error) {
-    console.error(
-      `Error reevaluando estado para AD_Tab_ID=${tab.ad_tab_id}`,
-      error
+    void reevaluateRecordState(
+      selectedRecord
     );
   }
-}
 
 
-function escapeFilterValue(value: string): string {
-  return value.replace(/'/g, "''");
-}
+  async function handleNewRecord() {
+    setSaveError(null);
+    setSaveMessage(null);
 
-function handleSearchRecords(criteria: Record<string, string>) {
-  const filters = Object.entries(criteria)
-    .filter(([, value]) => value.trim() !== "")
-    .map(([columnName, value]) => {
-      const field = tab.fields.find(
-        (candidate) => candidate.columnname === columnName
+    try {
+      const state =
+        await getNewRecordState(
+          tab.ad_tab_id,
+          {
+            parent_values:
+              buildParentValues(),
+          }
+        );
+
+      const newRecord:
+        Record<string, unknown> = {};
+
+      Object.entries(
+        state.values
+      ).forEach(
+        ([columnName, value]) => {
+
+          newRecord[
+            columnName.toLowerCase()
+          ] = value;
+        }
       );
 
-      const escapedValue = escapeFilterValue(value.trim());
-      const type = field?.reference?.type;
+      setFieldStates(state.fields);
+      setIsNewRecord(true);
+      setRecord(newRecord);
 
-      if (
-        type === "integer" ||
-        type === "number" ||
-        type === "amount" ||
-        type === "quantity" ||
-        type === "costprice"
-      ) {
-        return `${columnName}=${escapedValue}`;
-      }
+      onRecordChange(
+        tab.ad_tab_id,
+        newRecord
+      );
 
-      if (
-        type === "boolean" ||
-        type === "list" ||
-        type === "lookup" ||
-        type === "search" ||
-        type === "date" ||
-        type === "datetime" ||
-        type === "time"
-      ) {
-        return `${columnName}='${escapedValue}'`;
-      }
+    } catch (error) {
+      console.error(
+        `Error construyendo nuevo registro para AD_Tab_ID=${tab.ad_tab_id}`,
+        error
+      );
 
-      return `${columnName} ILIKE '%${escapedValue}%'`;
-    });
-
-  const filter = filters.join(" and ");
-
-  setSearchFilter(filter);
-  setPage(1);
-  setSearchOpen(false);
-}
-
-async function handleNewRecord() {
-  setSaveError(null);
-  setSaveMessage(null);
-
-  try {
-    const state = await getNewRecordState(
-      tab.ad_tab_id,
-      {
-        parent_values: buildParentValues(),
-      }
-    );
-
-    const newRecord: Record<string, unknown> = {};
-
-    Object.entries(state.values).forEach(([columnName, value]) => {
-      newRecord[columnName.toLowerCase()] = value;
-    });
-
-    setFieldStates(state.fields);
-    setIsNewRecord(true);
-    setRecord(newRecord);
-
-    onRecordChange(tab.ad_tab_id, newRecord);
-
-  } catch (error) {
-    console.error(
-      `Error construyendo nuevo registro para AD_Tab_ID=${tab.ad_tab_id}`,
-      error
-    );
-
-    setSaveError(
-      error instanceof Error
-        ? error.message
-        : "No fue posible inicializar el nuevo registro"
-    );
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "No fue posible inicializar el nuevo registro"
+      );
+    }
   }
-}
 
 
   function handleEditRecord() {
     setSaveError(null);
     setSaveMessage(null);
-    setOriginalRecord({ ...record });
+
+    setOriginalRecord({
+      ...record,
+    });
+
     setIsEditing(true);
   }
 
 
   function handleCancelEdit() {
     if (originalRecord) {
-      const restoredRecord = { ...originalRecord };
+      const restoredRecord = {
+        ...originalRecord,
+      };
 
       setRecord(restoredRecord);
-      void reevaluateRecordState(restoredRecord);
+
+      void reevaluateRecordState(
+        restoredRecord
+      );
     }
 
     setSaveError(null);
@@ -474,17 +669,35 @@ async function handleNewRecord() {
   }
 
 
-  function getRecordKeyValues(): Array<string | number> | undefined {
-    if (!tab.pk_columns || tab.pk_columns.length === 0)
+  function getRecordKeyValues():
+    Array<string | number> | undefined {
+
+    if (
+      !tab.pk_columns ||
+      tab.pk_columns.length === 0
+    ) {
       return undefined;
+    }
 
-    const values: Array<string | number> = [];
+    const values:
+      Array<string | number> = [];
 
-    for (const columnName of tab.pk_columns) {
-      const value = record[columnName.toLowerCase()];
+    for (
+      const columnName
+      of tab.pk_columns
+    ) {
 
-      if (typeof value !== "string" && typeof value !== "number")
+      const value =
+        record[
+          columnName.toLowerCase()
+        ];
+
+      if (
+        typeof value !== "string" &&
+        typeof value !== "number"
+      ) {
         return undefined;
+      }
 
       values.push(value);
     }
@@ -495,16 +708,25 @@ async function handleNewRecord() {
 
   async function handleSaveNewRecord() {
     if (!tab.data_endpoint) {
-      setSaveError("La pestaña no posee un endpoint REST configurado");
+      setSaveError(
+        "La pestaña no posee un endpoint REST configurado"
+      );
       return;
     }
 
-    const missingFields = validateCreateRecord(tab, record);
+    const missingFields =
+      validateCreateRecord(
+        tab,
+        record
+      );
 
     if (missingFields.length > 0) {
       setSaveError(
-        `Complete los campos obligatorios: ${missingFields.map((field) => field.name).join(", ")}`
+        `Complete los campos obligatorios: ${missingFields
+          .map((field) => field.name)
+          .join(", ")}`
       );
+
       return;
     }
 
@@ -513,8 +735,17 @@ async function handleNewRecord() {
     setSaveMessage(null);
 
     try {
-      const payload = buildCreatePayload(tab, record);
-      const createdId = await createRecord(tab.data_endpoint, payload);
+      const payload =
+        buildCreatePayload(
+          tab,
+          record
+        );
+
+      const createdId =
+        await createRecord(
+          tab.data_endpoint,
+          payload
+        );
 
       setSaveMessage(
         createdId
@@ -522,14 +753,13 @@ async function handleNewRecord() {
           : "Registro creado correctamente."
       );
 
-      /*
-       * Al salir del modo Nuevo, el effect vuelve a consultar
-       * el backend para no mantener datos sólo existentes en memoria.
-       */
       setIsNewRecord(false);
 
     } catch (error) {
-      console.error(`Error creando registro en ${tab.data_endpoint}`, error);
+      console.error(
+        `Error creando registro en ${tab.data_endpoint}`,
+        error
+      );
 
       setSaveError(
         error instanceof Error
@@ -545,28 +775,42 @@ async function handleNewRecord() {
 
   async function handleSaveEditedRecord() {
     if (!tab.data_endpoint) {
-      setSaveError("La pestaña no posee un endpoint REST configurado");
+      setSaveError(
+        "La pestaña no posee un endpoint REST configurado"
+      );
       return;
     }
 
     if (!originalRecord) {
-      setSaveError("No se dispone del estado original del registro");
+      setSaveError(
+        "No se dispone del estado original del registro"
+      );
       return;
     }
 
-    const recordKeyValues = getRecordKeyValues();
+    const recordKeyValues =
+      getRecordKeyValues();
 
     if (!recordKeyValues) {
-      setSaveError("No fue posible determinar la clave primaria del registro");
+      setSaveError(
+        "No fue posible determinar la clave primaria del registro"
+      );
       return;
     }
 
-    const missingFields = validateUpdateRecord(tab, record);
+    const missingFields =
+      validateUpdateRecord(
+        tab,
+        record
+      );
 
     if (missingFields.length > 0) {
       setSaveError(
-        `Complete los campos obligatorios: ${missingFields.map((field) => field.name).join(", ")}`
+        `Complete los campos obligatorios: ${missingFields
+          .map((field) => field.name)
+          .join(", ")}`
       );
+
       return;
     }
 
@@ -575,40 +819,71 @@ async function handleNewRecord() {
     setSaveMessage(null);
 
     try {
-      const payload = buildUpdatePayload(tab, record, originalRecord);
+      const payload =
+        buildUpdatePayload(
+          tab,
+          record,
+          originalRecord
+        );
 
-      if (Object.keys(payload).length === 0) {
-        setSaveMessage("No existen cambios para guardar.");
+      if (
+        Object.keys(payload).length === 0
+      ) {
+        setSaveMessage(
+          "No existen cambios para guardar."
+        );
+
         setIsEditing(false);
         return;
       }
 
-      await updateRecord(tab.data_endpoint, recordKeyValues, payload);
-
-      const updatedRecord = await getRecordByKey(
+      await updateRecord(
         tab.data_endpoint,
-        recordKeyValues
+        recordKeyValues,
+        payload
       );
+
+      const updatedRecord =
+        await getRecordByKey(
+          tab.data_endpoint,
+          recordKeyValues
+        );
 
       if (!updatedRecord) {
         setSaveError(
           "El registro fue actualizado pero no pudo recuperarse nuevamente."
         );
+
         setIsEditing(false);
         return;
       }
 
       setRecord(updatedRecord);
-      setOriginalRecord({ ...updatedRecord });
-      onRecordChange(tab.ad_tab_id, updatedRecord);
 
-      void reevaluateRecordState(updatedRecord);
+      setOriginalRecord({
+        ...updatedRecord,
+      });
 
-      setSaveMessage("Registro actualizado correctamente.");
+      onRecordChange(
+        tab.ad_tab_id,
+        updatedRecord
+      );
+
+      void reevaluateRecordState(
+        updatedRecord
+      );
+
+      setSaveMessage(
+        "Registro actualizado correctamente."
+      );
+
       setIsEditing(false);
 
     } catch (error) {
-      console.error(`Error actualizando registro en ${tab.data_endpoint}`, error);
+      console.error(
+        `Error actualizando registro en ${tab.data_endpoint}`,
+        error
+      );
 
       setSaveError(
         error instanceof Error
@@ -624,20 +899,26 @@ async function handleNewRecord() {
 
   async function handleDeleteRecord() {
     if (!tab.data_endpoint) {
-      setSaveError("La pestaña no posee un endpoint REST configurado");
+      setSaveError(
+        "La pestaña no posee un endpoint REST configurado"
+      );
       return;
     }
 
-    const recordKeyValues = getRecordKeyValues();
+    const recordKeyValues =
+      getRecordKeyValues();
 
     if (!recordKeyValues) {
-      setSaveError("No fue posible determinar la clave primaria del registro");
+      setSaveError(
+        "No fue posible determinar la clave primaria del registro"
+      );
       return;
     }
 
-    const confirmed = window.confirm(
-      "¿Confirma eliminar este registro?\n\nEsta operación no puede deshacerse."
-    );
+    const confirmed =
+      window.confirm(
+        "¿Confirma eliminar este registro?\n\nEsta operación no puede deshacerse."
+      );
 
     if (!confirmed)
       return;
@@ -647,21 +928,24 @@ async function handleNewRecord() {
     setSaveMessage(null);
 
     try {
-      await deleteRecord(tab.data_endpoint, recordKeyValues);
+      await deleteRecord(
+        tab.data_endpoint,
+        recordKeyValues
+      );
 
-      setSaveMessage("Registro eliminado correctamente.");
+      setSaveMessage(
+        "Registro eliminado correctamente."
+      );
 
-      /*
-      * Volver a consultar la página actual.
-      *
-      * Si acabamos de eliminar el último registro disponible
-      * en esa posición, el useEffect existente retrocederá
-      * automáticamente una página cuando corresponda.
-      */
-      setRefreshToken((current) => current + 1);
+      setRefreshToken(
+        (current) => current + 1
+      );
 
     } catch (error) {
-      console.error(`Error eliminando registro en ${tab.data_endpoint}`, error);
+      console.error(
+        `Error eliminando registro en ${tab.data_endpoint}`,
+        error
+      );
 
       setSaveError(
         error instanceof Error
@@ -675,7 +959,11 @@ async function handleNewRecord() {
   }
 
 
-  function formatDateValue(rawValue: unknown, type: string): string {
+  function formatDateValue(
+    rawValue: unknown,
+    type: string
+  ): string {
+
     if (
       rawValue === null ||
       rawValue === undefined ||
@@ -684,55 +972,107 @@ async function handleNewRecord() {
       return "";
     }
 
-    const value = String(rawValue);
+    const value =
+      String(rawValue);
 
-    if (type === "date")
-      return value.length >= 10 ? value.substring(0, 10) : value;
+    if (type === "date") {
+      return value.length >= 10
+        ? value.substring(0, 10)
+        : value;
+    }
 
     if (type === "datetime") {
-      const normalized = value.replace(" ", "T");
-      return normalized.length >= 16 ? normalized.substring(0, 16) : normalized;
+      const normalized =
+        value.replace(" ", "T");
+
+      return normalized.length >= 16
+        ? normalized.substring(0, 16)
+        : normalized;
     }
 
     if (type === "time") {
       if (value.includes("T")) {
-        const time = value.split("T")[1];
-        return time ? time.substring(0, 5) : "";
+        const time =
+          value.split("T")[1];
+
+        return time
+          ? time.substring(0, 5)
+          : "";
       }
 
       if (value.includes(" ")) {
-        const time = value.split(" ")[1];
-        return time ? time.substring(0, 5) : "";
+        const time =
+          value.split(" ")[1];
+
+        return time
+          ? time.substring(0, 5)
+          : "";
       }
 
-      return value.length >= 5 ? value.substring(0, 5) : value;
+      return value.length >= 5
+        ? value.substring(0, 5)
+        : value;
     }
 
     return value;
   }
 
 
-  function renderField(field: WindowSchemaField) {
-    const state = getFieldState(field);
+  function renderField(
+    field: WindowSchemaField
+  ) {
 
-    if (state && !state.displayed)
+    const state =
+      getFieldState(field);
+
+    if (
+      state &&
+      !state.displayed
+    ) {
       return null;
+    }
 
-    if (isNewRecord && !state)
+    if (
+      isNewRecord &&
+      !state
+    ) {
       return null;
-    const rawValue = getFieldValue(field);
-    const editable = isFieldEditable(field);
-    const visualState = getFieldVisualState(field);
-    const effectiveReadOnly = !editable && (state?.readonly === true || isNewRecord || isMetadataReadOnly(field));
+    }
+
+    const rawValue =
+      getFieldValue(field);
+
+    const editable =
+      isFieldEditable(field);
+
+    const visualState =
+      getFieldVisualState(field);
+
+    const effectiveReadOnly =
+      !editable &&
+      (
+        state?.readonly === true ||
+        isNewRecord ||
+        isMetadataReadOnly(field)
+      );
 
 
-    if (field.reference?.type === "button") {
+    if (
+      field.reference?.type === "button"
+    ) {
       return (
         <Box
           key={field.ad_field_id}
-          sx={{ marginTop: 2, marginBottom: 1 }}
+          sx={{
+            marginTop: 2,
+            marginBottom: 1,
+          }}
         >
-          <Button variant="contained" size="small" disabled>
+          <Button
+            variant="contained"
+            size="small"
+            disabled
+          >
             {field.name}
           </Button>
 
@@ -753,7 +1093,10 @@ async function handleNewRecord() {
     }
 
 
-    if (field.reference?.type === "boolean") {
+    if (
+      field.reference?.type === "boolean"
+    ) {
+
       const checked =
         rawValue === true ||
         rawValue === "Y" ||
@@ -761,24 +1104,36 @@ async function handleNewRecord() {
 
       return (
         <Box
-            key={field.ad_field_id}
-            sx={[
-              {
-                marginTop: 0.75,
-                marginBottom: 0.25,
-              },
-              getReadOnlyContainerSx(effectiveReadOnly),
-            ]}
-          >
+          key={field.ad_field_id}
+          sx={[
+            {
+              marginTop: 0.75,
+              marginBottom: 0.25,
+            },
+            getReadOnlyContainerSx(
+              effectiveReadOnly
+            ),
+          ]}
+        >
           <FormControlLabel
             control={
               <Checkbox
                 checked={checked}
                 disabled={!editable}
-                onChange={(event) => setFieldValue(field, event.target.checked)}
+                onChange={
+                  (event) =>
+                    setFieldValue(
+                      field,
+                      event.target.checked
+                    )
+                }
               />
             }
-            label={field.ismandatory ? `${field.name} *` : field.name}
+            label={
+              field.ismandatory
+                ? `${field.name} *`
+                : field.name
+            }
           />
 
           <Typography
@@ -798,7 +1153,9 @@ async function handleNewRecord() {
     }
 
 
-    if (field.reference?.type === "search") {
+    if (
+      field.reference?.type === "search"
+    ) {
       return (
         <SearchField
           key={field.ad_field_id}
@@ -806,13 +1163,21 @@ async function handleNewRecord() {
           rawValue={rawValue}
           editable={editable}
           visualState={visualState}
-          onChange={(value) => setFieldValue(field, value)}
+          onChange={
+            (value) =>
+              setFieldValue(
+                field,
+                value
+              )
+          }
         />
       );
     }
 
 
-    if (field.reference?.type === "lookup") {
+    if (
+      field.reference?.type === "lookup"
+    ) {
       return (
         <LookupField
           key={field.ad_field_id}
@@ -820,15 +1185,25 @@ async function handleNewRecord() {
           rawValue={rawValue}
           editable={editable}
           visualState={visualState}
-          onChange={(value) => setFieldValue(field, value)}
+          onChange={
+            (value) =>
+              setFieldValue(
+                field,
+                value
+              )
+          }
         />
       );
     }
 
 
-    if (field.reference?.type === "list") {
+    if (
+      field.reference?.type === "list"
+    ) {
+
       const value =
-        rawValue === null || rawValue === undefined
+        rawValue === null ||
+        rawValue === undefined
           ? ""
           : String(rawValue);
 
@@ -839,14 +1214,26 @@ async function handleNewRecord() {
           margin="dense"
           required={field.ismandatory}
           disabled={!editable}
-          sx={getFieldStateSx(visualState)}
+          sx={
+            getFieldStateSx(
+              visualState
+            )
+          }
         >
-          <InputLabel>{field.name}</InputLabel>
+          <InputLabel>
+            {field.name}
+          </InputLabel>
 
           <Select
             value={value}
             label={field.name}
-            onChange={(event) => setFieldValue(field, event.target.value)}
+            onChange={
+              (event) =>
+                setFieldValue(
+                  field,
+                  event.target.value
+                )
+            }
           >
             {!field.ismandatory && (
               <MenuItem value="">
@@ -854,11 +1241,16 @@ async function handleNewRecord() {
               </MenuItem>
             )}
 
-            {field.reference.values?.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.name}
-              </MenuItem>
-            ))}
+            {field.reference.values?.map(
+              (option) => (
+                <MenuItem
+                  key={option.value}
+                  value={option.value}
+                >
+                  {option.name}
+                </MenuItem>
+              )
+            )}
           </Select>
 
           <Typography
@@ -883,7 +1275,9 @@ async function handleNewRecord() {
       field.reference?.type === "datetime" ||
       field.reference?.type === "time"
     ) {
-      const type = field.reference.type;
+
+      const type =
+        field.reference.type;
 
       const inputType =
         type === "date"
@@ -899,19 +1293,42 @@ async function handleNewRecord() {
           required={field.ismandatory}
           disabled={!editable}
           type={inputType}
-          value={formatDateValue(rawValue, type)}
-          onChange={(event) => setFieldValue(field, event.target.value)}
-          helperText={`column: ${field.columnname}`}
+          value={
+            formatDateValue(
+              rawValue,
+              type
+            )
+          }
+          onChange={
+            (event) =>
+              setFieldValue(
+                field,
+                event.target.value
+              )
+          }
+          helperText={
+            `column: ${field.columnname}`
+          }
           fullWidth
           margin="dense"
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={getFieldStateSx(visualState)}
+          slotProps={{
+            inputLabel: {
+              shrink: true,
+            },
+          }}
+          sx={
+            getFieldStateSx(
+              visualState
+            )
+          }
         />
       );
     }
 
 
-    if (field.reference?.type === "integer") {
+    if (
+      field.reference?.type === "integer"
+    ) {
       return (
         <TextField
           key={field.ad_field_id}
@@ -920,22 +1337,41 @@ async function handleNewRecord() {
           disabled={!editable}
           type="number"
           value={
-            rawValue === null || rawValue === undefined
+            rawValue === null ||
+            rawValue === undefined
               ? ""
               : String(rawValue)
           }
-          onChange={(event) => setFieldValue(field, event.target.value)}
-          helperText={`column: ${field.columnname}`}
+          onChange={
+            (event) =>
+              setFieldValue(
+                field,
+                event.target.value
+              )
+          }
+          helperText={
+            `column: ${field.columnname}`
+          }
           fullWidth
           margin="dense"
-          slotProps={{ htmlInput: { step: 1 } }}
-          sx={getFieldStateSx(visualState)}
+          slotProps={{
+            htmlInput: {
+              step: 1,
+            },
+          }}
+          sx={
+            getFieldStateSx(
+              visualState
+            )
+          }
         />
       );
     }
 
 
-    if (field.reference?.type === "number") {
+    if (
+      field.reference?.type === "number"
+    ) {
       return (
         <TextField
           key={field.ad_field_id}
@@ -944,16 +1380,33 @@ async function handleNewRecord() {
           disabled={!editable}
           type="number"
           value={
-            rawValue === null || rawValue === undefined
+            rawValue === null ||
+            rawValue === undefined
               ? ""
               : String(rawValue)
           }
-          onChange={(event) => setFieldValue(field, event.target.value)}
-          helperText={`column: ${field.columnname}`}
+          onChange={
+            (event) =>
+              setFieldValue(
+                field,
+                event.target.value
+              )
+          }
+          helperText={
+            `column: ${field.columnname}`
+          }
           fullWidth
           margin="dense"
-          slotProps={{ htmlInput: { step: "any" } }}
-          sx={getFieldStateSx(visualState)}
+          slotProps={{
+            htmlInput: {
+              step: "any",
+            },
+          }}
+          sx={
+            getFieldStateSx(
+              visualState
+            )
+          }
         />
       );
     }
@@ -964,7 +1417,9 @@ async function handleNewRecord() {
       field.reference?.type === "quantity" ||
       field.reference?.type === "costprice"
     ) {
-      const type = field.reference.type;
+
+      const type =
+        field.reference.type;
 
       const labelSuffix =
         type === "amount"
@@ -976,30 +1431,53 @@ async function handleNewRecord() {
       return (
         <TextField
           key={field.ad_field_id}
-          label={`${field.name}${labelSuffix}`}
+          label={
+            `${field.name}${labelSuffix}`
+          }
           required={field.ismandatory}
           disabled={!editable}
           type="number"
           value={
-            rawValue === null || rawValue === undefined
+            rawValue === null ||
+            rawValue === undefined
               ? ""
               : String(rawValue)
           }
-          onChange={(event) => setFieldValue(field, event.target.value)}
-          helperText={`column: ${field.columnname}`}
+          onChange={
+            (event) =>
+              setFieldValue(
+                field,
+                event.target.value
+              )
+          }
+          helperText={
+            `column: ${field.columnname}`
+          }
           fullWidth
           margin="dense"
-          slotProps={{ htmlInput: { step: "any" } }}
+          slotProps={{
+            htmlInput: {
+              step: "any",
+            },
+          }}
           sx={[
-            getFieldStateSx(visualState),
-            { "& input": { textAlign: "right" } },
+            getFieldStateSx(
+              visualState
+            ),
+            {
+              "& input": {
+                textAlign: "right",
+              },
+            },
           ]}
         />
       );
     }
 
 
-    if (field.reference?.type === "textarea") {
+    if (
+      field.reference?.type === "textarea"
+    ) {
       return (
         <TextField
           key={field.ad_field_id}
@@ -1007,17 +1485,30 @@ async function handleNewRecord() {
           required={field.ismandatory}
           disabled={!editable}
           value={
-            rawValue === null || rawValue === undefined
+            rawValue === null ||
+            rawValue === undefined
               ? ""
               : String(rawValue)
           }
-          onChange={(event) => setFieldValue(field, event.target.value)}
-          helperText={`column: ${field.columnname}`}
+          onChange={
+            (event) =>
+              setFieldValue(
+                field,
+                event.target.value
+              )
+          }
+          helperText={
+            `column: ${field.columnname}`
+          }
           fullWidth
           multiline
           minRows={3}
           margin="dense"
-          sx={getFieldStateSx(visualState)}
+          sx={
+            getFieldStateSx(
+              visualState
+            )
+          }
         />
       );
     }
@@ -1029,39 +1520,65 @@ async function handleNewRecord() {
         label={field.name}
         required={field.ismandatory}
         value={
-          rawValue === null || rawValue === undefined
+          rawValue === null ||
+          rawValue === undefined
             ? ""
             : String(rawValue)
         }
-        onChange={(event) => setFieldValue(field, event.target.value)}
-        helperText={`column: ${field.columnname}`}
+        onChange={
+          (event) =>
+            setFieldValue(
+              field,
+              event.target.value
+            )
+        }
+        helperText={
+          `column: ${field.columnname}`
+        }
         fullWidth
         margin="dense"
         disabled={!editable}
-        sx={getFieldStateSx(visualState)}
+        sx={
+          getFieldStateSx(
+            visualState
+          )
+        }
       />
     );
   }
 
 
   useEffect(() => {
-    onPageChange(tab.ad_tab_id, page);
-  }, [tab.ad_tab_id, page]);
+    onPageChange(
+      tab.ad_tab_id,
+      page
+    );
+  }, [
+    tab.ad_tab_id,
+    page,
+  ]);
+
 
   useEffect(() => {
     setIsNewRecord(false);
     setIsEditing(false);
     setOriginalRecord(null);
-    if (tab.parent_ad_tab_id !== undefined)
+
+    setViewMode("form");
+
+    if (
+      tab.parent_ad_tab_id !== undefined
+    ) {
       setPage(1);
-  }, [tab.ad_tab_id, parentRecord]);
+    }
+  }, [
+    tab.ad_tab_id,
+    parentRecord,
+  ]);
 
 
   useEffect(() => {
-    /*
-     * Mientras estamos creando un registro no debemos
-     * reemplazarlo mediante GET.
-     */
+
     if (isNewRecord)
       return;
 
@@ -1069,58 +1586,82 @@ async function handleNewRecord() {
       setRecord({});
       setFieldStates([]);
       setTotalCount(0);
-      onRecordChange(tab.ad_tab_id, null);
+
+      onRecordChange(
+        tab.ad_tab_id,
+        null
+      );
+
       return;
     }
 
-    const filters: string[] = [];
+    const filter =
+      buildRecordFilter();
 
-    if (tab.parent_ad_tab_id !== undefined) {
-      const parentValue = getParentKeyValue();
+    if (
+      tab.parent_ad_tab_id !== undefined &&
+      filter === undefined
+    ) {
+      setRecord({});
+      setFieldStates([]);
+      setTotalCount(0);
 
-      if (
-        parentValue === undefined ||
-        parentValue === null ||
-        !tab.link_columnname
-      ) {
-        setRecord({});
-        setFieldStates([]);
-        setTotalCount(0);
-        onRecordChange(tab.ad_tab_id, null);
-        return;
-      }
+      onRecordChange(
+        tab.ad_tab_id,
+        null
+      );
 
-      filters.push(`${tab.link_columnname}=${parentValue}`);
+      return;
     }
 
-    if (searchFilter)
-      filters.push(searchFilter);
+    getRecord(
+      tab.data_endpoint,
+      page,
+      filter
+    )
+      .then(
+        ({
+          record: result,
+          totalCount,
+        }) => {
 
-    const filter = filters.length > 0
-      ? filters.join(" and ")
-      : undefined;
+          setTotalCount(totalCount);
 
-    getRecord(tab.data_endpoint, page, filter)
-      .then(({ record: result, totalCount }) => {
-        setTotalCount(totalCount);
+          if (result === null) {
+            if (
+              totalCount > 0 &&
+              page > totalCount
+            ) {
+              setPage(totalCount);
+            } else {
+              setRecord({});
+              setFieldStates([]);
 
-        if (result === null) {
-          if (totalCount > 0 && page > totalCount) {
-            setPage(totalCount);
-          } else {
-            setRecord({});
-            setFieldStates([]);
-            onRecordChange(tab.ad_tab_id, null);
+              onRecordChange(
+                tab.ad_tab_id,
+                null
+              );
+            }
+
+            return;
           }
 
-          return;
-        }
+          setRecord(result);
 
-        setRecord(result);
-        setOriginalRecord({ ...result });
-        onRecordChange(tab.ad_tab_id, result);
-        void reevaluateRecordState(result);
-      })
+          setOriginalRecord({
+            ...result,
+          });
+
+          onRecordChange(
+            tab.ad_tab_id,
+            result
+          );
+
+          void reevaluateRecordState(
+            result
+          );
+        }
+      )
       .catch((error) => {
         console.error(
           `Error recuperando datos desde ${tab.data_endpoint}`,
@@ -1130,13 +1671,24 @@ async function handleNewRecord() {
         setRecord({});
         setFieldStates([]);
         setTotalCount(0);
-        onRecordChange(tab.ad_tab_id, null);
+
+        onRecordChange(
+          tab.ad_tab_id,
+          null
+        );
       });
 
-  }, [tab, page, parentRecord, isNewRecord, refreshToken, searchFilter]);
+  }, [
+    tab,
+    page,
+    parentRecord,
+    isNewRecord,
+    refreshToken,
+    searchFilter,
+  ]);
 
 
-    return (
+  return (
     <Box
       sx={{
         height: "100%",
@@ -1152,7 +1704,10 @@ async function handleNewRecord() {
           flexShrink: 0,
         }}
       >
-        <Typography variant="h6" gutterBottom>
+        <Typography
+          variant="h6"
+          gutterBottom
+        >
           {tab.name}
         </Typography>
 
@@ -1161,25 +1716,45 @@ async function handleNewRecord() {
         </Typography>
 
         <Typography variant="body2">
-          endpoint: {tab.data_endpoint ?? "sin endpoint"}
+          endpoint: {
+            tab.data_endpoint ??
+            "sin endpoint"
+          }
         </Typography>
 
-        {tab.parent_ad_tab_id !== undefined && (
+        {tab.parent_ad_tab_id !==
+          undefined && (
           <Typography variant="body2">
-            parent tab: {tab.parent_ad_tab_id}
-            {tab.link_columnname ? ` — link: ${tab.link_columnname}` : ""}
+            parent tab: {
+              tab.parent_ad_tab_id
+            }
+
+            {tab.link_columnname
+              ? ` — link: ${tab.link_columnname}`
+              : ""}
           </Typography>
         )}
 
         {tab.isreadonly && (
-          <Alert severity="info" sx={{ marginTop: 2 }}>
+          <Alert
+            severity="info"
+            sx={{
+              marginTop: 2,
+            }}
+          >
             Esta pestaña es de solo lectura.
           </Alert>
         )}
 
         {!tab.data_endpoint && (
-          <Alert severity="warning" sx={{ marginTop: 2 }}>
-            No existe un endpoint REST configurado para la tabla {tab.tablename}.
+          <Alert
+            severity="warning"
+            sx={{
+              marginTop: 2,
+            }}
+          >
+            No existe un endpoint REST configurado
+            para la tabla {tab.tablename}.
           </Alert>
         )}
       </Box>
@@ -1199,34 +1774,68 @@ async function handleNewRecord() {
               gap: 2,
             }}
           >
-            <ButtonGroup variant="outlined" size="small">
-
-            <Button
-              onClick={() => setPage(1)}
-              disabled={isNewRecord || isEditing || page === 1 || totalCount === 0}
+            <ButtonGroup
+              variant="outlined"
+              size="small"
             >
-              |← Primero
-            </Button>
+
+              <Button
+                onClick={() => setPage(1)}
+                disabled={
+                  viewMode === "grid" ||
+                  isNewRecord ||
+                  isEditing ||
+                  page === 1 ||
+                  totalCount === 0
+                }
+              >
+                |← Primero
+              </Button>
 
               <Button
                 onClick={() =>
-                  setPage((current) => Math.max(1, current - 1))
+                  setPage(
+                    (current) =>
+                      Math.max(
+                        1,
+                        current - 1
+                      )
+                  )
                 }
-                disabled={isNewRecord || isEditing || page === 1}
+                disabled={
+                  viewMode === "grid" ||
+                  isNewRecord ||
+                  isEditing ||
+                  page === 1
+                }
               >
                 ← Anterior
               </Button>
 
               <Button
-                onClick={() => setPage((current) => current + 1)}
-                disabled={isNewRecord || isEditing || totalCount === 0 || page >= totalCount}
+                onClick={() =>
+                  setPage(
+                    (current) =>
+                      current + 1
+                  )
+                }
+                disabled={
+                  viewMode === "grid" ||
+                  isNewRecord ||
+                  isEditing ||
+                  totalCount === 0 ||
+                  page >= totalCount
+                }
               >
                 Siguiente →
               </Button>
 
               <Button
-                onClick={() => setPage(totalCount)}
+                onClick={() =>
+                  setPage(totalCount)
+                }
                 disabled={
+                  viewMode === "grid" ||
                   isNewRecord ||
                   isEditing ||
                   totalCount === 0 ||
@@ -1239,6 +1848,7 @@ async function handleNewRecord() {
               <Button
                 onClick={handleNewRecord}
                 disabled={
+                  viewMode === "grid" ||
                   tab.isreadonly === true ||
                   isNewRecord ||
                   isEditing ||
@@ -1251,11 +1861,13 @@ async function handleNewRecord() {
               <Button
                 onClick={handleEditRecord}
                 disabled={
+                  viewMode === "grid" ||
                   tab.isreadonly === true ||
                   isNewRecord ||
                   isEditing ||
                   saving ||
-                  getRecordKeyValues() === undefined
+                  getRecordKeyValues() ===
+                    undefined
                 }
               >
                 Editar
@@ -1264,18 +1876,22 @@ async function handleNewRecord() {
               <Button
                 onClick={handleDeleteRecord}
                 disabled={
+                  viewMode === "grid" ||
                   tab.isreadonly === true ||
                   isNewRecord ||
                   isEditing ||
                   saving ||
-                  getRecordKeyValues() === undefined
+                  getRecordKeyValues() ===
+                    undefined
                 }
               >
                 Eliminar
               </Button>
 
               <Button
-                onClick={() => setSearchOpen(true)}
+                onClick={() =>
+                  setSearchOpen(true)
+                }
                 disabled={
                   isNewRecord ||
                   isEditing ||
@@ -1300,13 +1916,37 @@ async function handleNewRecord() {
                 Limpiar búsqueda
               </Button>
 
+              <Button
+                onClick={() =>
+                  setViewMode(
+                    (current) =>
+                      current === "form"
+                        ? "grid"
+                        : "form"
+                  )
+                }
+                disabled={
+                  isNewRecord ||
+                  isEditing ||
+                  saving
+                }
+              >
+                {viewMode === "form"
+                  ? "Grilla"
+                  : "Ficha"}
+              </Button>
+
               {isNewRecord && (
                 <>
                   <Button
-                    onClick={handleSaveNewRecord}
+                    onClick={
+                      handleSaveNewRecord
+                    }
                     disabled={saving}
                   >
-                    {saving ? "Guardando..." : "Guardar"}
+                    {saving
+                      ? "Guardando..."
+                      : "Guardar"}
                   </Button>
 
                   <Button
@@ -1324,24 +1964,34 @@ async function handleNewRecord() {
               {isEditing && (
                 <>
                   <Button
-                    onClick={handleSaveEditedRecord}
+                    onClick={
+                      handleSaveEditedRecord
+                    }
                     disabled={saving}
                   >
-                    {saving ? "Guardando..." : "Guardar"}
+                    {saving
+                      ? "Guardando..."
+                      : "Guardar"}
                   </Button>
 
                   <Button
-                    onClick={handleCancelEdit}
+                    onClick={
+                      handleCancelEdit
+                    }
                     disabled={saving}
                   >
                     Cancelar
                   </Button>
                 </>
               )}
+
             </ButtonGroup>
 
+
             <Typography variant="body2">
-              {isNewRecord
+              {viewMode === "grid"
+                ? `Grilla — ${totalCount} registros`
+                : isNewRecord
                 ? "Nuevo registro"
                 : isEditing
                 ? `Editando registro ${page} de ${totalCount}`
@@ -1349,6 +1999,7 @@ async function handleNewRecord() {
                 ? `Registro ${page} de ${totalCount}`
                 : "Sin registros"}
             </Typography>
+
 
             {searchFilter && (
               <Typography variant="body2">
@@ -1359,22 +2010,36 @@ async function handleNewRecord() {
 
 
           {/* MENSAJES CRUD */}
-          <Box sx={{ flexShrink: 0 }}>
+          <Box
+            sx={{
+              flexShrink: 0,
+            }}
+          >
             {saveError && (
-              <Alert severity="error" sx={{ marginBottom: 2 }}>
+              <Alert
+                severity="error"
+                sx={{
+                  marginBottom: 2,
+                }}
+              >
                 {saveError}
               </Alert>
             )}
 
             {saveMessage && (
-              <Alert severity="success" sx={{ marginBottom: 2 }}>
+              <Alert
+                severity="success"
+                sx={{
+                  marginBottom: 2,
+                }}
+              >
                 {saveMessage}
               </Alert>
             )}
           </Box>
 
 
-          {/* CAMPOS: ÚNICA ZONA SCROLLEABLE */}
+          {/* FICHA / GRILLA */}
           <Box
             sx={{
               flex: 1,
@@ -1384,22 +2049,51 @@ async function handleNewRecord() {
               paddingBottom: 2,
             }}
           >
-            {[...tab.fields]
-              .filter((field) => field.isdisplayed !== false)
-              .sort((a, b) => a.seqno - b.seqno)
-              .map(renderField)}
+
+            {viewMode === "form" ? (
+              <>
+                {[...tab.fields]
+                  .filter(
+                    (field) =>
+                      field.isdisplayed !==
+                      false
+                  )
+                  .sort(
+                    (a, b) =>
+                      a.seqno - b.seqno
+                  )
+                  .map(renderField)}
+              </>
+            ) : (
+              <RecordGrid
+                tab={tab}
+                filter={
+                  buildRecordFilter()
+                }
+                currentRecordPage={page}
+                onSelectRecord={
+                  handleGridSelectRecord
+                }
+              />
+            )}
+
           </Box>
 
         </>
       )}
 
+
       <RecordSearchDialog
         open={searchOpen}
         tab={tab}
-        onClose={() => setSearchOpen(false)}
-        onSearch={handleSearchRecords}
+        onClose={() =>
+          setSearchOpen(false)
+        }
+        onSearch={
+          handleSearchRecords
+        }
       />
 
     </Box>
   );
-}  
+}

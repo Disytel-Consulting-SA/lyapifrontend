@@ -74,6 +74,7 @@ export interface WindowSchemaField {
 
   seqno: number;
   isdisplayed: boolean;
+  isdisplayedingrid: boolean;
   isreadonly: boolean;
 
   ad_column_id: number;
