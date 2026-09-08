@@ -130,6 +130,7 @@ export default function Login({ onLogin }: Props) {
             autoComplete="username"
             margin="normal"
             disabled={loading}
+            slotProps={{ inputLabel: { shrink: true } }}
           />
 
           <TextField
@@ -141,6 +142,7 @@ export default function Login({ onLogin }: Props) {
             autoComplete="current-password"
             margin="normal"
             disabled={loading}
+            slotProps={{ inputLabel: { shrink: true } }}
           />
 
           {error && (

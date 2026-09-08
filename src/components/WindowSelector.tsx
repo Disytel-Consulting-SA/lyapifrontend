@@ -59,6 +59,13 @@ export default function WindowSelector({ value, onChange }: Props) {
         <TextField
           {...params}
           label="Ventana"
+          slotProps={{
+            ...params.slotProps,
+            inputLabel: {
+              ...params.slotProps.inputLabel,
+              shrink: true,
+            },
+          }}
         />
       )}
     />

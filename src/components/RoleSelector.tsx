@@ -37,11 +37,12 @@ export default function RoleSelector({ value, onChange }: Props) {
 
   return (
     <FormControl fullWidth>
-      <InputLabel>Perfil</InputLabel>
+      <InputLabel shrink>Perfil</InputLabel>
 
       <Select
         value={value}
         label="Perfil"
+        notched
         onChange={(event) => handleChange(Number(event.target.value))}
       >
         {roles.map((role) => (

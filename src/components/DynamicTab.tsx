@@ -189,7 +189,14 @@ function LookupField({
             {...params}
             label={field.name}
             required={field.ismandatory}
-            helperText={error ? error : `column: ${field.columnname}`}
+            helperText={error ?? undefined}
+            slotProps={{
+              ...params.slotProps,
+              inputLabel: {
+                ...params.slotProps.inputLabel,
+                shrink: true,
+              },
+            }}
             sx={getFieldStateSx(visualState)}
           />
         )}
@@ -1076,18 +1083,6 @@ export default function DynamicTab({
             {field.name}
           </Button>
 
-          <Typography
-            variant="caption"
-            sx={{
-              display: "block",
-              fontSize: "0.65rem",
-              lineHeight: 1.1,
-              marginTop: 0.1,
-              marginLeft: 1,
-            }}
-          >
-            column: {field.columnname}
-          </Typography>
         </Box>
       );
     }
@@ -1136,18 +1131,6 @@ export default function DynamicTab({
             }
           />
 
-          <Typography
-            variant="caption"
-            sx={{
-              display: "block",
-              fontSize: "0.65rem",
-              lineHeight: 1.1,
-              marginTop: 0.1,
-              marginLeft: 4,
-            }}
-          >
-            column: {field.columnname}
-          </Typography>
         </Box>
       );
     }
@@ -1220,12 +1203,13 @@ export default function DynamicTab({
             )
           }
         >
-          <InputLabel>
+          <InputLabel shrink>
             {field.name}
           </InputLabel>
 
           <Select
             value={value}
+            notched
             label={field.name}
             onChange={
               (event) =>
@@ -1253,18 +1237,6 @@ export default function DynamicTab({
             )}
           </Select>
 
-          <Typography
-            variant="caption"
-            sx={{
-              display: "block",
-              fontSize: "0.65rem",
-              lineHeight: 1.1,
-              marginTop: 0.1,
-              marginLeft: 1,
-            }}
-          >
-            column: {field.columnname}
-          </Typography>
         </FormControl>
       );
     }
@@ -1306,9 +1278,6 @@ export default function DynamicTab({
                 event.target.value
               )
           }
-          helperText={
-            `column: ${field.columnname}`
-          }
           fullWidth
           margin="dense"
           slotProps={{
@@ -1349,12 +1318,12 @@ export default function DynamicTab({
                 event.target.value
               )
           }
-          helperText={
-            `column: ${field.columnname}`
-          }
           fullWidth
           margin="dense"
           slotProps={{
+            inputLabel: {
+              shrink: true,
+            },
             htmlInput: {
               step: 1,
             },
@@ -1392,12 +1361,12 @@ export default function DynamicTab({
                 event.target.value
               )
           }
-          helperText={
-            `column: ${field.columnname}`
-          }
           fullWidth
           margin="dense"
           slotProps={{
+            inputLabel: {
+              shrink: true,
+            },
             htmlInput: {
               step: "any",
             },
@@ -1450,12 +1419,12 @@ export default function DynamicTab({
                 event.target.value
               )
           }
-          helperText={
-            `column: ${field.columnname}`
-          }
           fullWidth
           margin="dense"
           slotProps={{
+            inputLabel: {
+              shrink: true,
+            },
             htmlInput: {
               step: "any",
             },
@@ -1497,13 +1466,15 @@ export default function DynamicTab({
                 event.target.value
               )
           }
-          helperText={
-            `column: ${field.columnname}`
-          }
           fullWidth
           multiline
           minRows={3}
           margin="dense"
+          slotProps={{
+            inputLabel: {
+              shrink: true,
+            },
+          }}
           sx={
             getFieldStateSx(
               visualState
@@ -1532,12 +1503,14 @@ export default function DynamicTab({
               event.target.value
             )
         }
-        helperText={
-          `column: ${field.columnname}`
-        }
         fullWidth
         margin="dense"
         disabled={!editable}
+        slotProps={{
+          inputLabel: {
+            shrink: true,
+          },
+        }}
         sx={
           getFieldStateSx(
             visualState
