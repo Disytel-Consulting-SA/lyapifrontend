@@ -19,6 +19,7 @@ import type {
   WindowSchemaTab,
 } from "../types/metadata";
 
+import SearchField from "./SearchField";
 
 interface Props {
   open: boolean;
@@ -49,8 +50,11 @@ export default function RecordSearchDialog({
   const searchFields = useMemo(() => {
     return tab.fields.filter(
       (field) =>
-        STANDARD_SEARCH_COLUMNS.has(field.columnname) ||
-        field.isselectioncolumn
+        !field.iskey &&
+        (
+          STANDARD_SEARCH_COLUMNS.has(field.columnname) ||
+          field.isselectioncolumn
+        )
     );
   }, [tab.fields]);
 
@@ -142,6 +146,18 @@ export default function RecordSearchDialog({
       );
     }
 
+    if (type === "search") {
+      return (
+        <SearchField
+          key={field.ad_field_id}
+          field={field}
+          rawValue={value}
+          editable={true}
+          visualState="edit"
+          onChange={(newValue) => handleChange(field, newValue)}
+        />
+      );
+    }
 
     if (
       type === "date" ||
