@@ -171,7 +171,7 @@ export default function RecordGrid({
 
   const gridFields = useMemo(() => {
     return tab.fields
-      .filter((field) => field.isdisplayedingrid)
+      .filter((field) => field.isdisplayed && field.isdisplayedingrid)
       .sort((a, b) => a.seqno - b.seqno);
   }, [tab.fields]);
 
