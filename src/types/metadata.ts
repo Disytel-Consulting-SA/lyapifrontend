@@ -13,6 +13,7 @@ export interface WindowSchema {
   ad_window_id: number;
   name: string;
   description?: string;
+  issotrx: boolean;
 
   tabs: WindowSchemaTab[];
 }

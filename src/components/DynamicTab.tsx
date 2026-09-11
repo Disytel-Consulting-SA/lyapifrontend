@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Alert,
@@ -62,6 +62,7 @@ interface Props {
   tab: WindowSchemaTab;
   parentTab?: WindowSchemaTab;
   parentRecord?: Record<string, unknown> | null;
+  windowIsSOTrx: boolean;
   initialPage: number;
 
   onRecordChange: (
@@ -78,9 +79,9 @@ interface LookupFieldProps {
   rawValue: unknown;
   editable: boolean;
   visualState: FieldVisualState;
+  contextValues: Record<string, string>;
   onChange: (value: string) => void;
 }
-
 
 /**
  * Lookup remoto para Table / Table Direct.
@@ -90,6 +91,7 @@ function LookupField({
   rawValue,
   editable,
   visualState,
+  contextValues,
   onChange,
 }: LookupFieldProps) {
 
@@ -112,7 +114,7 @@ function LookupField({
 
     let cancelled = false;
 
-    getLookupValues(endpoint, 1, 1, undefined, value)
+    getLookupValues(endpoint, 1, 1, undefined, value, contextValues)
       .then((values) => {
         if (!cancelled && values.length > 0) {
           setSelectedOption(values[0]);
@@ -126,7 +128,7 @@ function LookupField({
     return () => {
       cancelled = true;
     };
-  }, [endpoint, value]);
+  }, [endpoint, value, contextValues]);
 
 
   useEffect(() => {
@@ -138,7 +140,7 @@ function LookupField({
     setLoading(true);
     setError(null);
 
-    getLookupValues(endpoint, 50, 1, inputValue || undefined)
+    getLookupValues(endpoint, 50, 1, inputValue || undefined, undefined, contextValues)
       .then((values) => {
         if (!cancelled)
           setOptions(values);
@@ -159,7 +161,7 @@ function LookupField({
     return () => {
       cancelled = true;
     };
-  }, [endpoint, inputValue]);
+  }, [endpoint, inputValue, contextValues]);
 
 
   return (
@@ -210,6 +212,7 @@ export default function DynamicTab({
   tab,
   parentTab,
   parentRecord,
+  windowIsSOTrx,
   initialPage,
   onPageChange,
   onRecordChange,
@@ -457,6 +460,15 @@ export default function DynamicTab({
 
     return values;
   }
+
+
+  const lookupContextValues = useMemo(() => {
+    return {
+      ...buildParentValues(),
+      ...buildRecordStateValues(record),
+      IsSOTrx: windowIsSOTrx ? "Y" : "N",
+    };
+  }, [windowIsSOTrx, record, parentRecord, parentTab, tab.fields]);
 
 
   async function reevaluateRecordState(
@@ -1172,6 +1184,7 @@ export default function DynamicTab({
           rawValue={rawValue}
           editable={editable}
           visualState={visualState}
+          contextValues={lookupContextValues}
           onChange={
             (value) =>
               setFieldValue(

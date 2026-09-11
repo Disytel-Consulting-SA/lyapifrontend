@@ -523,7 +523,8 @@ export async function getLookupValues(
   limit = 50,
   page = 1,
   search?: string,
-  value?: string
+  value?: string,
+  contextValues?: Record<string, string>
 ): Promise<LookupValue[]> {
 
   const params =
@@ -564,6 +565,15 @@ export async function getLookupValues(
     );
   }
 
+  if (
+    contextValues !== undefined &&
+    Object.keys(contextValues).length > 0
+  ) {
+    params.set(
+      "context",
+      JSON.stringify(contextValues)
+    );
+  }
 
   const response =
     await authenticatedFetch(

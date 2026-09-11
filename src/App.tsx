@@ -498,6 +498,7 @@ function App() {
                   tab={selectedTab}
                   parentTab={parentTab}
                   parentRecord={parentRecord}
+                  windowIsSOTrx={windowSchema.issotrx}
                   initialPage={currentPages[selectedTab.ad_tab_id] ?? 1}
                   onPageChange={handlePageChange}
                   onRecordChange={handleRecordChange}
