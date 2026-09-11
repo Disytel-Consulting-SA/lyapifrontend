@@ -595,6 +595,10 @@ export default function DynamicTab({
 
 
   async function handleNewRecord() {
+
+    if (tab.isinsertrecord === false)
+      return;
+
     setSaveError(null);
     setSaveMessage(null);
 
@@ -1823,6 +1827,7 @@ export default function DynamicTab({
                 disabled={
                   viewMode === "grid" ||
                   tab.isreadonly === true ||
+                  tab.isinsertrecord === false ||
                   isNewRecord ||
                   isEditing ||
                   saving
