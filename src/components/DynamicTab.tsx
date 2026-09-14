@@ -463,12 +463,12 @@ export default function DynamicTab({
 
 
   const lookupContextValues = useMemo(() => {
-    return {
-      ...buildParentValues(),
-      ...buildRecordStateValues(record),
-      IsSOTrx: windowIsSOTrx ? "Y" : "N",
-    };
-  }, [windowIsSOTrx, record, parentRecord, parentTab, tab.fields]);
+  return {
+    IsSOTrx: windowIsSOTrx ? "Y" : "N",
+    ...buildParentValues(),
+    ...buildRecordStateValues(record),
+  };
+}, [windowIsSOTrx, record, parentRecord, parentTab, tab.fields]);
 
 
   async function reevaluateRecordState(
