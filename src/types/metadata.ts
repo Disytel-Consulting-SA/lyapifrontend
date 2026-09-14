@@ -78,6 +78,8 @@ export interface WindowSchemaField {
   isdisplayed: boolean;
   isdisplayedingrid: boolean;
   isreadonly: boolean;
+  issameline: boolean;
+  fieldgroup?: string;
 
   ad_column_id: number;
   columnname: string;

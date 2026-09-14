@@ -142,16 +142,23 @@ export default function SearchField({
 
 
   return (
-    <Box sx={{ marginTop: 2, marginBottom: 1 }}>
-      <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+    <Box>
+      <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
         <TextField
           label={field.name}
           value={selectedOption?.name ?? ""}
           required={field.ismandatory}
           disabled={!editable}
           fullWidth
-          slotProps={{ input: { readOnly: true } }}
-          helperText={`column: ${field.columnname}`}
+          margin="dense"
+          slotProps={{
+            input: {
+              readOnly: true,
+            },
+            inputLabel: {
+              shrink: true,
+            },
+          }}
           sx={getFieldStateSx(visualState)}
         />
 
@@ -159,7 +166,7 @@ export default function SearchField({
           variant="contained"
           disabled={!editable}
           onClick={handleOpen}
-          sx={{ minWidth: 100, marginTop: 1 }}
+          sx={{ minWidth: 100, marginTop: 0.5, }}
         >
           Buscar
         </Button>
@@ -169,7 +176,7 @@ export default function SearchField({
             variant="outlined"
             disabled={!editable}
             onClick={handleClear}
-            sx={{ minWidth: 90, marginTop: 1 }}
+            sx={{ minWidth: 90, marginTop: 0.5, }}
           >
             Limpiar
           </Button>

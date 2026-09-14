@@ -7,11 +7,8 @@ import {
   Button,
   ButtonGroup,
   Checkbox,
-  FormControl,
   FormControlLabel,
-  InputLabel,
   MenuItem,
-  Select,
   TextField,
   Tooltip,
   Typography,
@@ -74,6 +71,15 @@ interface Props {
   onPageChange: (tabId: number, page: number) => void;
 }
 
+
+interface FormFieldRow {
+  fields: WindowSchemaField[];
+}
+
+interface FormFieldGroup {
+  name?: string;
+  rows: FormFieldRow[];
+}
 
 interface LookupFieldProps {
   field: WindowSchemaField;
@@ -166,8 +172,9 @@ function LookupField({
 
 
   return (
-    <Box sx={{ marginTop: .75, marginBottom: .25 }}>
+    <Box>
       <Autocomplete
+        fullWidth
         options={options}
         value={selectedOption}
         loading={loading}
@@ -192,7 +199,7 @@ function LookupField({
             {...params}
             label={field.name}
             required={field.ismandatory}
-            helperText={error ?? undefined}
+            margin="dense"
             slotProps={{
               ...params.slotProps,
               inputLabel: {
@@ -1041,6 +1048,91 @@ export default function DynamicTab({
     return value;
   }
 
+  function isFieldDisplayed(
+    field: WindowSchemaField
+  ): boolean {
+
+    if (field.isdisplayed === false)
+      return false;
+
+    const state = getFieldState(field);
+
+    if (state && !state.displayed)
+      return false;
+
+    if (isNewRecord && !state)
+      return false;
+
+    return true;
+  }
+
+
+    function buildFormLayout(): FormFieldGroup[] {
+
+    const fields = [...tab.fields]
+      .filter(isFieldDisplayed)
+      .sort((a, b) => a.seqno - b.seqno);
+
+    const groups: FormFieldGroup[] = [];
+
+    let currentGroup: FormFieldGroup | undefined;
+    let activeFieldGroup: string | undefined;
+
+    for (const field of fields) {
+
+      const fieldGroup =
+        field.fieldgroup?.trim() || undefined;
+
+      let startsNewGroup = false;
+
+      if (
+        fieldGroup &&
+        fieldGroup !== activeFieldGroup
+      ) {
+        activeFieldGroup = fieldGroup;
+        startsNewGroup = true;
+
+        currentGroup = {
+          name: fieldGroup,
+          rows: [],
+        };
+
+        groups.push(currentGroup);
+      }
+
+      if (!currentGroup) {
+        currentGroup = {
+          rows: [],
+        };
+
+        groups.push(currentGroup);
+      }
+
+      const previousRow =
+        currentGroup.rows[
+          currentGroup.rows.length - 1
+        ];
+
+      const sameLine =
+        !startsNewGroup &&
+        field.issameline === true &&
+        previousRow !== undefined &&
+        previousRow.fields.length < 2;
+
+      if (sameLine) {
+        previousRow.fields.push(field);
+      } else {
+        currentGroup.rows.push({
+          fields: [field],
+        });
+      }
+    }
+
+    return groups;
+  }
+
+  const formLayout = buildFormLayout();
+
 
   function renderField(
     field: WindowSchemaField
@@ -1209,53 +1301,50 @@ export default function DynamicTab({
           : String(rawValue);
 
       return (
-        <FormControl
+        <TextField
           key={field.ad_field_id}
-          fullWidth
-          margin="dense"
+          select
+          label={field.name}
+          value={value}
           required={field.ismandatory}
           disabled={!editable}
-          sx={
-            getFieldStateSx(
-              visualState
+          fullWidth
+          margin="dense"
+          onChange={(event) =>
+            setFieldValue(
+              field,
+              event.target.value
             )
           }
+          slotProps={{
+            inputLabel: {
+              shrink: true,
+            },
+          }}
+          sx={[
+            getFieldStateSx(visualState),
+            {
+              marginTop: 0.375,
+            },
+          ]}
         >
-          <InputLabel shrink>
-            {field.name}
-          </InputLabel>
+          {!field.ismandatory && (
+            <MenuItem value="">
+              <em>Sin valor</em>
+            </MenuItem>
+          )}
 
-          <Select
-            value={value}
-            notched
-            label={field.name}
-            onChange={
-              (event) =>
-                setFieldValue(
-                  field,
-                  event.target.value
-                )
-            }
-          >
-            {!field.ismandatory && (
-              <MenuItem value="">
-                <em>Sin valor</em>
+          {field.reference.values?.map(
+            (option) => (
+              <MenuItem
+                key={option.value}
+                value={option.value}
+              >
+                {option.name}
               </MenuItem>
-            )}
-
-            {field.reference.values?.map(
-              (option) => (
-                <MenuItem
-                  key={option.value}
-                  value={option.value}
-                >
-                  {option.name}
-                </MenuItem>
-              )
-            )}
-          </Select>
-
-        </FormControl>
+            )
+          )}
+        </TextField>
       );
     }
 
@@ -2043,21 +2132,77 @@ export default function DynamicTab({
             }}
           >
 
-            {viewMode === "form" ? (
-              <>
-                {[...tab.fields]
-                  .filter(
-                    (field) =>
-                      field.isdisplayed !==
-                      false
-                  )
-                  .sort(
-                    (a, b) =>
-                      a.seqno - b.seqno
-                  )
-                  .map(renderField)}
-              </>
-            ) : (
+          {viewMode === "form" ? (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 1,
+              }}
+            >
+              {formLayout.map((group, groupIndex) => (
+                <Box
+                  key={`${group.name ?? "default"}-${groupIndex}`}
+                >
+                  {group.name && (
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        marginTop: groupIndex === 0 ? 0.5 : 2,
+                        marginBottom: 1,
+                        paddingBottom: 0.5,
+                        borderBottom: 1,
+                        borderColor: "divider",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {group.name}
+                    </Typography>
+                  )}
+
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0.5,
+                    }}
+                  >
+                    {group.rows.map((row, rowIndex) => (
+                      <Box
+                        key={rowIndex}
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: {
+                            xs: "1fr",
+                            md: row.fields.length === 2
+                              ? "repeat(2, minmax(0, 1fr))"
+                              : "1fr",
+                          },
+                          columnGap: 2,
+                          alignItems: "start",
+                        }}
+                      >
+                        {row.fields.map((field) => (
+                          <Box
+                            key={field.ad_field_id}
+                            sx={{
+                              minWidth: 0,
+                              "& > .MuiFormControl-root": {
+                                marginTop: 1,
+                                marginBottom: 0.5,
+                              },
+                            }}
+                          >
+                            {renderField(field)}
+                          </Box>
+                        ))}
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          ) : (
               <RecordGrid
                 tab={tab}
                 filter={
