@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import {
   Box,
   Button,
-  Container,
   List,
   ListItemButton,
   ListItemText,
@@ -245,273 +244,268 @@ function App() {
 
 
   return (
-    <Container
-      maxWidth="xl"
+    <Box
       sx={{
         height: "100vh",
-        paddingTop: 2,
-        paddingBottom: 2,
-        display: "flex",
-        flexDirection: "column",
+        display: "grid",
+        gridTemplateColumns: {
+          xs: "1fr",
+          md: "280px minmax(0, 1fr)",
+        },
         overflow: "hidden",
+        backgroundColor: "background.default",
       }}
     >
 
-      {/* HEADER */}
-      <Box
+      {/* SIDEBAR */}
+      <Paper
+        square
+        variant="outlined"
         sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
-          marginBottom: 3,
+          minHeight: 0,
+          display: {
+            xs: "none",
+            md: "flex",
+          },
+          flexDirection: "column",
+          borderTop: 0,
+          borderBottom: 0,
+          borderLeft: 0,
+          overflow: "hidden",
         }}
       >
-        <LibertyaLogo width={190} />
 
-        <Typography
-          variant="h6"
-          color="text.secondary"
+        {/* BRANDING */}
+        <Box
           sx={{
-            borderLeft: 1,
+            padding: 2,
+            borderBottom: 1,
             borderColor: "divider",
-            paddingLeft: 2,
           }}
         >
-          Dynamic UI
-        </Typography>
+          <LibertyaLogo width={185} />
 
-        <Box
-          sx={{
-            marginLeft: "auto",
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-          }}
-        >
-          <ThemeModeToggle />
-
-          <Typography
-            variant="body2"
-            color="text.secondary"
-          >
-            {getUsername()}
-          </Typography>
-
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={handleLogout}
-          >
-            Salir
-          </Button>
         </Box>
-      </Box>
 
 
-      {/* SELECTOR DE PERFIL */}
-      <RoleSelector
-        value={roleId}
-        onChange={handleRoleChange}
-      />
-
-
-      {/* SELECTOR DE VENTANA */}
-      {roleId !== "" && (
-        <Box sx={{ marginTop: 1 }}>
-          <WindowSelector
-            key={roleId}
-            value={windowId}
-            onChange={setWindowId}
-          />
-        </Box>
-      )}
-
-
-      {/* VENTANA SELECCIONADA */}
-      {windowSchema && (
+        {/* USUARIO */}
         <Box
           sx={{
-            flex: 1,
-            minHeight: 0,
-            display: "flex",
-            flexDirection: "column",
+            paddingX: 2,
+            paddingY: 1.5,
+            borderBottom: 1,
+            borderColor: "divider",
           }}
         >
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            <ThemeModeToggle />
 
-        <Box
-          sx={{
-            marginTop: 1.5,
-            marginBottom: 1.5,
-            display: "flex",
-            alignItems: "baseline",
-            gap: 2,
-            flexWrap: "wrap",
-          }}
-        >
-          <Typography variant="h5">
-            {windowSchema.name}
-          </Typography>
-
-          {windowSchema.description && (
             <Typography
               variant="body2"
               color="text.secondary"
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
             >
-              {windowSchema.description}
+              {getUsername()}
             </Typography>
+
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={handleLogout}
+            >
+              Salir
+            </Button>
+          </Box>
+        </Box>
+
+
+        {/* SELECTORES */}
+        <Box
+          sx={{
+            padding: 2,
+            borderBottom: 1,
+            borderColor: "divider",
+          }}
+        >
+          <RoleSelector
+            value={roleId}
+            onChange={handleRoleChange}
+          />
+
+          {roleId !== "" && (
+            <Box sx={{ marginTop: 1.5 }}>
+              <WindowSelector
+                key={roleId}
+                value={windowId}
+                onChange={setWindowId}
+              />
+            </Box>
           )}
         </Box>
 
 
-          {/* ÁRBOL + FORMULARIO */}
+        {/* ÁRBOL DE PESTAÑAS */}
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            padding: 1,
+          }}
+        >
+          {windowSchema && (
+            <List
+              disablePadding
+              dense
+            >
+              {windowSchema.tabs.map(
+                (
+                  tab,
+                  index
+                ) => {
+
+                  const active =
+                    index === activeTab;
+
+                  const level =
+                    tab.tablevel ?? 0;
+
+
+                  return (
+                    <ListItemButton
+                      key={tab.ad_tab_id}
+                      selected={active}
+                      onClick={() =>
+                        setActiveTab(index)
+                      }
+                      sx={{
+                        paddingLeft:
+                          1.5 +
+                          getTabIndent(tab),
+
+                        paddingTop:
+                          level === 0
+                            ? 0.8
+                            : 0.35,
+
+                        paddingBottom:
+                          level === 0
+                            ? 0.8
+                            : 0.35,
+
+                        borderRadius: 1,
+                        marginY: 0.15,
+
+                        ...(
+                          level === 0 &&
+                          !active
+                            ? {
+                                backgroundColor:
+                                  "action.hover",
+                              }
+                            : {}
+                        ),
+                      }}
+                    >
+
+                      {level > 0 && (
+                        <Box
+                          component="span"
+                          sx={{
+                            marginRight: 1,
+                            color: "text.secondary",
+                            fontSize: "0.8rem",
+                          }}
+                        >
+                          └─
+                        </Box>
+                      )}
+
+                      <ListItemText
+                        primary={tab.name}
+                        slotProps={{
+                          primary: {
+                            sx: {
+                              fontWeight:
+                                active
+                                  ? 600
+                                  : level === 0
+                                  ? 500
+                                  : 400,
+
+                              fontSize:
+                                level === 0
+                                  ? "0.95rem"
+                                  : "0.9rem",
+                            },
+                          },
+                        }}
+                      />
+
+                    </ListItemButton>
+                  );
+                }
+              )}
+            </List>
+          )}
+        </Box>
+
+      </Paper>
+
+
+      {/* WORKSPACE */}
+      <Box
+        sx={{
+          minWidth: 0,
+          minHeight: 0,
+          overflow: "hidden",
+          padding: 2,
+        }}
+      >
+
+        {windowSchema && selectedTab ? (
+          <DynamicTab
+            key={selectedTab.ad_tab_id}
+            tab={selectedTab}
+            parentTab={parentTab}
+            parentRecord={parentRecord}
+            windowIsSOTrx={windowSchema.issotrx}
+            initialPage={currentPages[selectedTab.ad_tab_id] ?? 1}
+            onPageChange={handlePageChange}
+            onRecordChange={handleRecordChange}
+          />
+        ) : (
           <Box
             sx={{
-              flex: 1,
-              minHeight: 0,
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                md: "260px minmax(0, 1fr)",
-              },
-              gap: 3,
-              alignItems: "stretch",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-
-            {/* ÁRBOL DE PESTAÑAS */}
-            <Paper
-              variant="outlined"
-              sx={{
-                minHeight: 0,
-                overflowY: "auto",
-              }}
+            <Typography
+              color="text.secondary"
             >
-              <List
-                disablePadding
-                dense
-              >
-                {windowSchema.tabs.map(
-                  (
-                    tab,
-                    index
-                  ) => {
-
-                    const active =
-                      index === activeTab;
-
-                    const level =
-                      tab.tablevel ?? 0;
-
-
-                    return (
-                      <ListItemButton
-                        key={tab.ad_tab_id}
-                        selected={active}
-                        onClick={() =>
-                          setActiveTab(index)
-                        }
-                        sx={{
-                          paddingLeft:
-                            1.5 +
-                            getTabIndent(tab),
-
-                          paddingTop:
-                            level === 0
-                              ? 0.8
-                              : 0.35,
-
-                          paddingBottom:
-                            level === 0
-                              ? 0.8
-                              : 0.35,
-
-                          borderRadius: 1,
-                          marginY: 0.15,
-
-                          ...(
-                            level === 0 &&
-                            !active
-                              ? {
-                                  backgroundColor:
-                                    "action.hover",
-                                }
-                              : {}
-                          ),
-                        }}
-                      >
-
-                        {level > 0 && (
-                          <Box
-                            component="span"
-                            sx={{
-                              marginRight: 1,
-                              color: "text.secondary",
-                              fontSize: "0.8rem",
-                            }}
-                          >
-                            └─
-                          </Box>
-                        )}
-
-
-                        <ListItemText
-                          primary={tab.name}
-                          slotProps={{
-                            primary: {
-                              sx: {
-                                fontWeight:
-                                  active
-                                    ? 600
-                                    : level === 0
-                                    ? 500
-                                    : 400,
-
-                                fontSize:
-                                  level === 0
-                                    ? "0.95rem"
-                                    : "0.9rem",
-                              },
-                            },
-                          }}
-                        />
-
-                      </ListItemButton>
-                    );
-                  }
-                )}
-
-              </List>
-            </Paper>
-
-
-            {/* CONTENIDO DE LA PESTAÑA */}
-            <Box
-              sx={{
-                minWidth: 0,
-                minHeight: 0,
-                overflow: "hidden",
-              }}
-            >
-              {selectedTab && (
-                <DynamicTab
-                  key={selectedTab.ad_tab_id}
-                  tab={selectedTab}
-                  parentTab={parentTab}
-                  parentRecord={parentRecord}
-                  windowIsSOTrx={windowSchema.issotrx}
-                  initialPage={currentPages[selectedTab.ad_tab_id] ?? 1}
-                  onPageChange={handlePageChange}
-                  onRecordChange={handleRecordChange}
-                />
-              )}
-            </Box>
-
+              Seleccioná una ventana para comenzar
+            </Typography>
           </Box>
+        )}
 
-        </Box>
-      )}
+      </Box>
 
-    </Container>
+    </Box>
   );
 }
 

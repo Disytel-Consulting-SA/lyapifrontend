@@ -13,6 +13,7 @@ import {
   MenuItem,
   Select,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 
@@ -1694,36 +1695,37 @@ export default function DynamicTab({
           flexShrink: 0,
         }}
       >
+      <Tooltip
+        arrow
+        placement="right"
+        title={
+          <>
+            <div>Tabla: {tab.tablename}</div>
+            <div>
+              Endpoint: {tab.data_endpoint ?? "sin endpoint"}
+            </div>
+
+            {tab.parent_ad_tab_id !== undefined && (
+              <div>
+                Parent tab: {tab.parent_ad_tab_id}
+                {tab.link_columnname
+                  ? ` — Link: ${tab.link_columnname}`
+                  : ""}
+              </div>
+            )}
+          </>
+        }
+      >
         <Typography
           variant="h6"
-          gutterBottom
+          sx={{
+            display: "inline-block",
+            cursor: "help",
+          }}
         >
           {tab.name}
         </Typography>
-
-        <Typography variant="body2">
-          tabla: {tab.tablename}
-        </Typography>
-
-        <Typography variant="body2">
-          endpoint: {
-            tab.data_endpoint ??
-            "sin endpoint"
-          }
-        </Typography>
-
-        {tab.parent_ad_tab_id !==
-          undefined && (
-          <Typography variant="body2">
-            parent tab: {
-              tab.parent_ad_tab_id
-            }
-
-            {tab.link_columnname
-              ? ` — link: ${tab.link_columnname}`
-              : ""}
-          </Typography>
-        )}
+      </Tooltip>
 
         {tab.isreadonly && (
           <Alert
