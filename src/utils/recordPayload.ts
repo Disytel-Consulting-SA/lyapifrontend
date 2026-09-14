@@ -13,7 +13,6 @@ import type {
 const SERVER_MANAGED_COLUMNS =
   new Set([
     "ad_client_id",
-    "ad_org_id",
     "created",
     "createdby",
     "updated",
