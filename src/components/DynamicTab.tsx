@@ -90,6 +90,12 @@ interface LookupFieldProps {
   onChange: (value: string) => void;
 }
 
+const numericFieldSx = {
+  "& input": {
+    textAlign: "right",
+  },
+};
+
 /**
  * Lookup remoto para Table / Table Direct.
  */
@@ -1435,11 +1441,10 @@ export default function DynamicTab({
               step: 1,
             },
           }}
-          sx={
-            getFieldStateSx(
-              visualState
-            )
-          }
+          sx={[
+            getFieldStateSx(visualState),
+            numericFieldSx,
+          ]}
         />
       );
     }
@@ -1478,11 +1483,10 @@ export default function DynamicTab({
               step: "any",
             },
           }}
-          sx={
-            getFieldStateSx(
-              visualState
-            )
-          }
+          sx={[
+            getFieldStateSx(visualState),
+            numericFieldSx,
+          ]}
         />
       );
     }
@@ -1537,14 +1541,8 @@ export default function DynamicTab({
             },
           }}
           sx={[
-            getFieldStateSx(
-              visualState
-            ),
-            {
-              "& input": {
-                textAlign: "right",
-              },
-            },
+            getFieldStateSx(visualState),
+            numericFieldSx,
           ]}
         />
       );
