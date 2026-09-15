@@ -562,6 +562,110 @@ export async function getLocation(
 }
 
 
+export interface LocationUpdate {
+  address1?: string;
+  address2?: string;
+  address3?: string;
+  address4?: string;
+  plaza?: string;
+  city?: string;
+  postal?: string;
+  c_region_id?: number;
+  c_country_id?: number;
+}
+
+
+export async function updateLocation(
+  endpoint: string,
+  locationId: string | number,
+  location: LocationUpdate
+): Promise<void> {
+
+  const response =
+    await authenticatedFetch(
+      `${BASE_URL}${endpoint}/${encodeURIComponent(
+        String(locationId)
+      )}`,
+      {
+        method: "PUT",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify(
+          location
+        ),
+      }
+    );
+
+
+  if (!response.ok) {
+
+    const detail =
+      await response.text();
+
+    throw new Error(
+      detail
+        ? `Error actualizando localización: ${detail}`
+        : `Error actualizando localización: ${response.status}`
+    );
+  }
+}
+
+
+
+export async function createLocation(
+  endpoint: string,
+  location: LocationUpdate
+): Promise<string> {
+
+  const response =
+    await authenticatedFetch(
+      `${BASE_URL}${endpoint}`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify(
+          location
+        ),
+      }
+    );
+
+
+  if (!response.ok) {
+
+    const detail =
+      await response.text();
+
+    throw new Error(
+      detail
+        ? `Error creando localización: ${detail}`
+        : `Error creando localización: ${response.status}`
+    );
+  }
+
+
+  /*
+   * El endpoint de creación de Libertya
+   * retorna como String el ID generado.
+   */
+  const createdId =
+    await response.text();
+
+  return createdId.replace(
+    /^"|"$/g,
+    ""
+  );
+}
+
+
 
 /**
  * Recupera opciones de un lookup.

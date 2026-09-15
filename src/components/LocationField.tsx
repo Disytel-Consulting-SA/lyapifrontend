@@ -1,4 +1,6 @@
-import React from "react";
+import React, {
+  useEffect,
+} from "react";
 
 import {
   IconButton,
@@ -16,29 +18,27 @@ import {
 
 import type {
   Location,
+  WindowSchemaField,
 } from "../api/libertyaApi";
 
-import type {
-  WindowSchemaField,
-} from "../types/metadata";
-
-import type {
-  FieldVisualState,
-} from "../styles/fieldStateStyles";
-
-import {
-  getFieldStateSx,
-} from "../styles/fieldStateStyles";
-
-import LocationDialog from "./LocationDialog";
+import LocationDialog
+  from "./LocationDialog";
 
 
 interface Props {
   field: WindowSchemaField;
   rawValue: unknown;
   editable: boolean;
-  visualState: FieldVisualState;
-  onChange: (value: string) => void;
+
+  visualState: {
+    displayed: boolean;
+    readonly: boolean;
+    mandatory: boolean;
+  };
+
+  onChange: (
+    value: string
+  ) => void;
 }
 
 
@@ -56,106 +56,132 @@ export default function LocationField({
       ? ""
       : String(rawValue);
 
+
   const [open, setOpen] =
     React.useState(false);
 
   const [location, setLocation] =
-    React.useState<Location | null>(null);
+    React.useState<Location | null>(
+      null
+    );
 
   const [loading, setLoading] =
     React.useState(false);
 
 
   /*
-   * Recupera la localización existente cuando
-   * el campo contiene un C_Location_ID.
+   * Recupera nuevamente la Location desde
+   * backend.
+   *
+   * Esta función también se utiliza después
+   * de guardar el diálogo, para refrescar la
+   * representación visible del campo.
    */
-  React.useEffect(() => {
+  const loadLocation =
+    React.useCallback(
+      async () => {
 
-    const endpoint =
-      field.reference?.endpoint;
+        const endpoint =
+          field.reference?.endpoint;
 
-    if (!endpoint || !value) {
-      setLocation(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    setLoading(true);
-
-    getLocation(
-      endpoint,
-      value
-    )
-      .then((result) => {
-        if (!cancelled)
-          setLocation(result);
-      })
-      .catch((error) => {
-        console.error(
-          `Error recuperando localización ${value}`,
-          error
-        );
-
-        if (!cancelled)
+        if (!endpoint || !value) {
           setLocation(null);
-      })
-      .finally(() => {
-        if (!cancelled)
+          return;
+        }
+
+        setLoading(true);
+
+        try {
+
+          const result =
+            await getLocation(
+              endpoint,
+              value
+            );
+
+          setLocation(result);
+
+        } catch (error) {
+
+          console.error(
+            `Error recuperando localización ${value}`,
+            error
+          );
+
+          setLocation(null);
+
+        } finally {
+
           setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-
-  }, [
-    field.reference?.endpoint,
-    value,
-  ]);
+        }
+      },
+      [
+        field.reference?.endpoint,
+        value,
+      ]
+    );
 
 
   /*
-   * Recupera el texto descriptivo de una referencia
-   * incluida por la REST API en referencedvalues.
+   * Recuperar Location cuando cambia el ID
+   * asociado al campo.
+   */
+  useEffect(() => {
+
+    void loadLocation();
+
+  }, [loadLocation]);
+
+
+  /*
+   * Recupera la descripción de una referencia
+   * incluida en referencedvalues.
    */
   function getReferencedValue(
     key: string
-  ): string {
+  ): string | undefined {
 
-    return (
-      location?.referencedvalues?.find(
-        (item) => item.key === key
-      )?.value ?? ""
-    );
+    return location
+      ?.referencedvalues
+      ?.find(
+        (item) =>
+          item.key === key
+      )
+      ?.value;
   }
 
 
   /*
-   * Por ahora usamos una representación simple
-   * de la dirección.
-   *
-   * Más adelante podremos reproducir exactamente
-   * el formato utilizado por Libertya CORE.
+   * Representación compacta que se muestra
+   * dentro de la ventana dinámica.
    */
   const displayValue =
     location
       ? [
           location.address1,
           location.city,
+
           getReferencedValue(
             "c_region_id__detail"
           ),
         ]
           .filter(
             (part) =>
-              part !== undefined &&
               part !== null &&
-              part !== ""
+              part !== undefined &&
+              String(part).trim() !== ""
           )
           .join(", ")
       : value;
+
+
+  /*
+   * El campo puede abrirse únicamente cuando
+   * la ventana permite editarlo.
+   */
+  const canEdit =
+    editable &&
+    !visualState.readonly;
 
 
   return (
@@ -167,55 +193,80 @@ export default function LocationField({
             ? "Cargando..."
             : displayValue
         }
-        required={field.ismandatory}
         fullWidth
-        margin="dense"
+        required={
+          visualState.mandatory
+        }
         slotProps={{
           input: {
             readOnly: true,
 
             endAdornment: (
-              <InputAdornment position="end">
-                <Tooltip title="Editar ubicación / dirección">
+              <InputAdornment
+                position="end"
+              >
+                <Tooltip
+                  title={
+                    canEdit
+                      ? "Editar ubicación / dirección"
+                      : "Ubicación / dirección"
+                  }
+                >
                   <span>
                     <IconButton
-                      size="small"
-                      disabled={!editable}
+                      edge="end"
+                      disabled={!canEdit}
                       onClick={() =>
                         setOpen(true)
                       }
                     >
-                      <EditLocationAltOutlinedIcon
-                        fontSize="small"
-                      />
+                      <EditLocationAltOutlinedIcon />
                     </IconButton>
                   </span>
                 </Tooltip>
               </InputAdornment>
             ),
           },
-
-          inputLabel: {
-            shrink: true,
-          },
         }}
-        sx={
-          getFieldStateSx(
-            visualState
-          )
-        }
       />
+
 
       <LocationDialog
         open={open}
+
+        endpoint={
+          field.reference?.endpoint ?? ""
+        }
+
         locationId={value}
+
         location={location}
+
         onClose={() =>
           setOpen(false)
         }
-        onAccept={(locationId: string) => {
+
+        onAccept={async (
+          locationId
+        ) => {
+
+          /*
+           * El ID de Location sigue siendo el
+           * valor del campo del registro padre.
+           */
           onChange(locationId);
+
           setOpen(false);
+
+          /*
+           * El PUT ya fue realizado por
+           * LocationDialog.
+           *
+           * Volvemos a recuperar la Location
+           * para actualizar address1, city,
+           * referencedvalues, etc.
+           */
+          await loadLocation();
         }}
       />
     </>
