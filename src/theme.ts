@@ -125,6 +125,16 @@ export function createLibertyaTheme(mode: PaletteMode) {
             "&.Mui-focused": {
               color: "#BE8224",
             },
+
+            /*
+            * Resalta únicamente el asterisco que MUI
+            * agrega a los campos obligatorios.
+            */
+            "& .MuiFormLabel-asterisk": {
+              color: "#D32F2F",
+              fontWeight: 700,
+              fontSize: "1.1em",
+            },
           },
         },
       },
