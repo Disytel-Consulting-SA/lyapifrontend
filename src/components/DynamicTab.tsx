@@ -52,6 +52,7 @@ import type {
 } from "../styles/fieldStateStyles";
 
 import SearchField from "./SearchField";
+import LocationField from "./LocationField";
 import RecordSearchDialog from "./RecordSearchDialog";
 import RecordGrid from "./RecordGrid";
 
@@ -1285,6 +1286,26 @@ export default function DynamicTab({
       );
     }
 
+    if (
+      field.reference?.type === "location"
+    ) {
+      return (
+        <LocationField
+          key={field.ad_field_id}
+          field={field}
+          rawValue={rawValue}
+          editable={editable}
+          visualState={visualState}
+          onChange={
+            (value) =>
+              setFieldValue(
+                field,
+                value
+              )
+          }
+        />
+      );
+    }    
 
     if (
       field.reference?.type === "search"

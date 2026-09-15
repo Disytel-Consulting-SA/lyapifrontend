@@ -61,6 +61,29 @@ export interface WindowRecordStateRequest {
   inserting?: boolean;
 }
 
+export interface Location {
+  c_location_id: number;
+
+  address1?: string;
+  address2?: string;
+  address3?: string;
+  address4?: string;
+
+  plaza?: string;
+  city?: string;
+  postal?: string;
+  postal_add?: string;
+
+  c_city_id?: number;
+  c_region_id?: number;
+  c_country_id: number;
+
+  referencedvalues?: Array<{
+    key: string;
+    value: string;
+  }>;
+}
+
 
 /**
  * Obtiene un JWT de Libertya REST API.
@@ -512,6 +535,31 @@ export async function getRecordByKey(
   return response.json();
 }
 
+
+
+export async function getLocation(
+  endpoint: string,
+  locationId: string | number
+): Promise<Location | null> {
+
+  const response =
+    await authenticatedFetch(
+      `${BASE_URL}${endpoint}/${encodeURIComponent(
+        String(locationId)
+      )}`
+    );
+
+  if (response.status === 404)
+    return null;
+
+  if (!response.ok) {
+    throw new Error(
+      `Error recuperando localización desde ${endpoint}: ${response.status}`
+    );
+  }
+
+  return response.json();
+}
 
 
 
