@@ -18,8 +18,11 @@ import {
 
 import type {
   Location,
-  WindowSchemaField,
 } from "../api/libertyaApi";
+
+import type {
+  WindowSchemaField,
+} from "../types/metadata";
 
 import LocationDialog
   from "./LocationDialog";
