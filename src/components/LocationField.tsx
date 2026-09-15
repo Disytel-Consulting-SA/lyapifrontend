@@ -201,6 +201,9 @@ export default function LocationField({
           visualState.mandatory
         }
         slotProps={{
+          inputLabel: {
+            shrink: true,
+        },  
           input: {
             readOnly: true,
 
