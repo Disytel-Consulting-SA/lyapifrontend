@@ -163,6 +163,16 @@ function App() {
     windowId,
   ]);
 
+    /*
+  * Actualizar el título de la pestaña del navegador
+  * según la ventana actualmente seleccionada.
+  */
+  useEffect(() => {
+    document.title = windowSchema
+      ? `${windowSchema.name} - Libertya NEXT`
+      : "Libertya NEXT";
+  }, [windowSchema]);
+
 
   if (!authenticated) {
     return (
@@ -530,7 +540,7 @@ function App() {
             <Typography
               color="text.secondary"
             >
-              Seleccioná una ventana para comenzar
+              Seleccionar un perfil y ventana para comenzar
             </Typography>
           </Box>
         )}
