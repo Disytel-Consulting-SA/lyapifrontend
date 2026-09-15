@@ -1898,21 +1898,37 @@ export default function DynamicTab({
       {tab.data_endpoint && (
         <>
 
-          {/* BOTONERA DE NAVEGACIÓN / CRUD */}
-          <Box
-            sx={{
-              flexShrink: 0,
-              marginTop: 1,
-              marginBottom: 2,
-              display: "flex",
-              alignItems: "center",
-              gap: 2,
-            }}
-          >
-            <ButtonGroup
-              variant="outlined"
-              size="small"
-            >
+      {/* BOTONERA DE NAVEGACIÓN / CRUD */}
+      <Box
+        sx={{
+          flexShrink: 0,
+          marginTop: 1,
+          marginBottom: 2,
+
+          width: "100%",
+          maxWidth: "100%",
+
+          overflowX: "auto",
+          overflowY: "hidden",
+
+          paddingBottom: 0.5,
+
+          WebkitOverflowScrolling:
+            "touch",
+        }}
+      >
+        <ButtonGroup
+          variant="outlined"
+          size="small"
+          sx={{
+            width: "max-content",
+            flexWrap: "nowrap",
+
+            "& .MuiButton-root": {
+              whiteSpace: "nowrap",
+            },
+          }}
+        >
 
               <Button
                 onClick={() => setPage(1)}

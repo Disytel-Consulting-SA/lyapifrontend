@@ -27,17 +27,17 @@ import type {
 import LocationDialog
   from "./LocationDialog";
 
+import type {
+  FieldVisualState,
+} from "../styles/fieldStateStyles";
+
 
 interface Props {
   field: WindowSchemaField;
   rawValue: unknown;
   editable: boolean;
 
-  visualState: {
-    displayed: boolean;
-    readonly: boolean;
-    mandatory: boolean;
-  };
+  visualState: FieldVisualState;
 
   onChange: (
     value: string
@@ -183,8 +183,7 @@ export default function LocationField({
    * la ventana permite editarlo.
    */
   const canEdit =
-    editable &&
-    !visualState.readonly;
+    editable;
 
 
   return (
@@ -198,7 +197,7 @@ export default function LocationField({
         }
         fullWidth
         required={
-          visualState.mandatory
+          field.ismandatory
         }
         slotProps={{
           inputLabel: {

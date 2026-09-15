@@ -323,16 +323,55 @@ function App() {
           square
           variant="outlined"
           sx={{
-            height: "100%",
-            minHeight: 0,
-            display: {
-              xs: "none",
-              md: "flex",
+            height: {
+              xs: "100vh",
+              md: "100%",
             },
+
+            width: {
+              xs: 280,
+              md: "auto",
+            },
+
+            maxWidth: {
+              xs: "calc(100vw - 32px)",
+              md: "none",
+            },
+
+            minHeight: 0,
+
+            display: "flex",
             flexDirection: "column",
+
+            position: {
+              xs: "fixed",
+              md: "relative",
+            },
+
+            top: {
+              xs: 0,
+              md: "auto",
+            },
+
+            left: {
+              xs: 0,
+              md: "auto",
+            },
+
+            zIndex: {
+              xs: 1200,
+              md: "auto",
+            },
+
+            boxShadow: {
+              xs: 8,
+              md: 0,
+            },
+
             borderTop: 0,
             borderBottom: 0,
             borderLeft: 0,
+
             overflow: "hidden",
           }}
         >
@@ -343,10 +382,39 @@ function App() {
               padding: 2,
               borderBottom: 1,
               borderColor: "divider",
+
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
             }}
           >
-            <LibertyaLogo width={185} />
+            <Box
+              sx={{
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
+              <LibertyaLogo width={185} />
+            </Box>
 
+            <Tooltip
+              title="Ocultar barra lateral"
+            >
+              <IconButton
+                size="small"
+                onClick={() =>
+                  setSidebarOpen(false)
+                }
+                sx={{
+                  display: {
+                    xs: "inline-flex",
+                    md: "none",
+                  },
+                }}
+              >
+                <MenuOpenIcon />
+              </IconButton>
+            </Tooltip>
           </Box>
 
 
