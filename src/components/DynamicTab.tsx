@@ -257,6 +257,15 @@ export default function DynamicTab({
   const [viewMode, setViewMode] =
     useState<"form" | "grid">("form");
 
+ /*
+  * Determina si la ficha respeta IsSameLine.
+  *
+  * true  = distribución definida por los metadatos
+  * false = un campo por línea
+  */
+  const [useSameLineLayout, setUseSameLineLayout] =
+    useState(true);
+
 
   function getFieldValue(field: WindowSchemaField): unknown {
     return record[field.columnname.toLowerCase()];
@@ -1120,6 +1129,7 @@ export default function DynamicTab({
         ];
 
       const sameLine =
+        useSameLineLayout &&
         !startsNewGroup &&
         field.issameline === true &&
         previousRow !== undefined &&
@@ -1995,6 +2005,23 @@ export default function DynamicTab({
               >
                 Limpiar búsqueda
               </Button>
+
+              <Button
+                onClick={() =>
+                  setUseSameLineLayout(
+                    (current) => !current
+                  )
+                }
+                disabled={
+                  viewMode === "grid" ||
+                  saving
+                }
+              >
+                {useSameLineLayout
+                  ? "Una columna"
+                  : "Dos columnas"}
+              </Button>
+
 
               <Button
                 onClick={() =>
