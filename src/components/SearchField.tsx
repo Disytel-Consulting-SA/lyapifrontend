@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Box,
@@ -45,9 +45,23 @@ export default function SearchField({
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const searchInputRef =  useRef<HTMLInputElement>(null);
   const endpoint = field.reference?.endpoint;
   const value = rawValue === null || rawValue === undefined ? "" : String(rawValue);
+
+
+  useEffect(() => {
+    if (!open)
+      return;
+
+    const timer =
+      window.setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+
+    return () =>
+      window.clearTimeout(timer);
+  }, [open]);
 
 
   useEffect(() => {
@@ -195,7 +209,7 @@ export default function SearchField({
 
         <DialogContent>
           <TextField
-            autoFocus
+            inputRef={searchInputRef}
             fullWidth
             label="Buscar"
             value={searchText}
