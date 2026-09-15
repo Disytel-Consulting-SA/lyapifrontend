@@ -793,12 +793,37 @@ export default function DynamicTab({
           payload
         );
 
+      /*
+      * El nuevo registro queda al final de la navegación.
+      *
+      * totalCount todavía contiene la cantidad anterior
+      * al alta, por lo que la nueva posición es + 1.
+      */
+      const newPage =
+        totalCount + 1;
+
       setSaveMessage(
         createdId
           ? `Registro creado correctamente. ID: ${createdId}`
           : "Registro creado correctamente."
       );
 
+      /*
+      * Primero posicionamos la navegación sobre
+      * el registro recién creado.
+      */
+      setPage(newPage);
+
+      onPageChange(
+        tab.ad_tab_id,
+        newPage
+      );
+
+      /*
+      * Al salir del modo alta se vuelve a ejecutar
+      * el efecto de carga. Como page ahora apunta
+      * al nuevo registro, se recuperará desde REST.
+      */
       setIsNewRecord(false);
 
     } catch (error) {
