@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -44,7 +45,33 @@ export function ThemeModeProvider({
   children: React.ReactNode;
 }) {
 
+
   const [mode, setMode] = useState<PaletteMode>(getInitialThemeMode);
+
+    useEffect(() => {
+    function handleStorage(event: StorageEvent) {
+      if (
+        event.key === THEME_STORAGE_KEY &&
+        (event.newValue === "light" ||
+        event.newValue === "dark")
+      ) {
+        setMode(event.newValue);
+      }
+    }
+
+    window.addEventListener(
+      "storage",
+      handleStorage
+    );
+
+    return () => {
+      window.removeEventListener(
+        "storage",
+        handleStorage
+      );
+    };
+  }, []);
+  
 
   const theme = useMemo(
     () => createLibertyaTheme(mode),

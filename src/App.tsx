@@ -32,6 +32,7 @@ import {
   SESSION_EXPIRED_EVENT,
   setRole,
   setToken,
+  TOKEN_KEY
 } from "./auth";
 
 import type {
@@ -73,6 +74,11 @@ function App() {
    */
   useEffect(() => {
     function handleSessionExpired() {
+      /*
+      * Cada pestaña debe limpiar su propio contexto.
+      */
+      clearRole();
+
       setRoleId("");
       setWindowId("");
       setWindowSchema(null);
@@ -82,15 +88,41 @@ function App() {
       setAuthenticated(false);
     }
 
+    function handleStorage(event: StorageEvent) {
+      /*
+      * El evento storage se dispara en las otras
+      * pestañas cuando cambia localStorage.
+      *
+      * Si desapareció el token global, la sesión
+      * fue cerrada desde otra pestaña.
+      */
+      if (
+        event.key === TOKEN_KEY &&
+        event.newValue === null
+      ) {
+        handleSessionExpired();
+      }
+    }
+
     window.addEventListener(
       SESSION_EXPIRED_EVENT,
       handleSessionExpired
+    );
+
+    window.addEventListener(
+      "storage",
+      handleStorage
     );
 
     return () => {
       window.removeEventListener(
         SESSION_EXPIRED_EVENT,
         handleSessionExpired
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleStorage
       );
     };
   }, []);
