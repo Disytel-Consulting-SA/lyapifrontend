@@ -8,6 +8,8 @@ import {
   ListItemText,
   Paper,
   Typography,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 
 import WindowSelector from "./components/WindowSelector";
@@ -16,6 +18,8 @@ import DynamicTab from "./components/DynamicTab";
 import Login from "./components/Login";
 import LibertyaLogo from "./components/LibertyaLogo";
 import ThemeModeToggle from "./components/ThemeModeToggle";
+import MenuOpenIcon from "@mui/icons-material/MenuOpen";
+import MenuIcon from "@mui/icons-material/Menu";
 
 import {
   getWindowSchema,
@@ -62,6 +66,14 @@ function App() {
 
   const [activeTab, setActiveTab] =
     useState(0);
+
+  /*
+  * Permite ocultar la barra lateral para aprovechar
+  * mejor pantallas angostas o en orientación vertical.
+  */
+  const [sidebarOpen, setSidebarOpen] =
+    useState(true);
+
 
   const [currentRecords, setCurrentRecords] =
     useState<CurrentRecords>({});
@@ -286,225 +298,234 @@ function App() {
 
 
   return (
-    <Box
-      sx={{
-        height: "100vh",
-        display: "grid",
-        gridTemplateColumns: {
-          xs: "1fr",
-          md: "280px minmax(0, 1fr)",
-        },
-        overflow: "hidden",
-        backgroundColor: "background.default",
-      }}
-    >
-
-      {/* SIDEBAR */}
-      <Paper
-        square
-        variant="outlined"
+      <Box
         sx={{
+          flex: 1,
           minHeight: 0,
-          display: {
-            xs: "none",
-            md: "flex",
-          },
-          flexDirection: "column",
-          borderTop: 0,
-          borderBottom: 0,
-          borderLeft: 0,
+          display: "grid",
+          gridTemplateColumns: sidebarOpen
+            ? {
+                xs: "1fr",
+                md: "280px minmax(0, 1fr)",
+              }
+            : "minmax(0, 1fr)",
+          gap: sidebarOpen ? 2 : 0,
           overflow: "hidden",
+          backgroundColor: "background.default",
         }}
       >
 
-        {/* BRANDING */}
-        <Box
+
+      {/* SIDEBAR */}
+      {sidebarOpen && (
+
+        <Paper
+          square
+          variant="outlined"
           sx={{
-            padding: 2,
-            borderBottom: 1,
-            borderColor: "divider",
+            minHeight: 0,
+            display: {
+              xs: "none",
+              md: "flex",
+            },
+            flexDirection: "column",
+            borderTop: 0,
+            borderBottom: 0,
+            borderLeft: 0,
+            overflow: "hidden",
           }}
         >
-          <LibertyaLogo width={185} />
 
-        </Box>
-
-
-        {/* USUARIO */}
-        <Box
-          sx={{
-            paddingX: 2,
-            paddingY: 1.5,
-            borderBottom: 1,
-            borderColor: "divider",
-          }}
-        >
+          {/* BRANDING */}
           <Box
             sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
+              padding: 2,
+              borderBottom: 1,
+              borderColor: "divider",
             }}
           >
-            <ThemeModeToggle />
+            <LibertyaLogo width={185} />
 
-            <Typography
-              variant="body2"
-              color="text.secondary"
+          </Box>
+
+
+          {/* USUARIO */}
+          <Box
+            sx={{
+              paddingX: 2,
+              paddingY: 1.5,
+              borderBottom: 1,
+              borderColor: "divider",
+            }}
+          >
+            <Box
               sx={{
-                flex: 1,
-                minWidth: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
               }}
             >
-              {getUsername()}
-            </Typography>
+              <ThemeModeToggle />
 
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={handleLogout}
-            >
-              Salir
-            </Button>
-          </Box>
-        </Box>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {getUsername()}
+              </Typography>
 
-
-        {/* SELECTORES */}
-        <Box
-          sx={{
-            padding: 2,
-            borderBottom: 1,
-            borderColor: "divider",
-          }}
-        >
-          <RoleSelector
-            value={roleId}
-            onChange={handleRoleChange}
-          />
-
-          {roleId !== "" && (
-            <Box sx={{ marginTop: 1.5 }}>
-              <WindowSelector
-                key={roleId}
-                value={windowId}
-                onChange={setWindowId}
-              />
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleLogout}
+              >
+                Salir
+              </Button>
             </Box>
-          )}
-        </Box>
+          </Box>
 
 
-        {/* ÁRBOL DE PESTAÑAS */}
-        <Box
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-            padding: 1,
-          }}
-        >
-          {windowSchema && (
-            <List
-              disablePadding
-              dense
-            >
-              {windowSchema.tabs.map(
-                (
-                  tab,
-                  index
-                ) => {
+          {/* SELECTORES */}
+          <Box
+            sx={{
+              padding: 2,
+              borderBottom: 1,
+              borderColor: "divider",
+            }}
+          >
+            <RoleSelector
+              value={roleId}
+              onChange={handleRoleChange}
+            />
 
-                  const active =
-                    index === activeTab;
-
-                  const level =
-                    tab.tablevel ?? 0;
+            {roleId !== "" && (
+              <Box sx={{ marginTop: 1.5 }}>
+                <WindowSelector
+                  key={roleId}
+                  value={windowId}
+                  onChange={setWindowId}
+                />
+              </Box>
+            )}
+          </Box>
 
 
-                  return (
-                    <ListItemButton
-                      key={tab.ad_tab_id}
-                      selected={active}
-                      onClick={() =>
-                        setActiveTab(index)
-                      }
-                      sx={{
-                        paddingLeft:
-                          1.5 +
-                          getTabIndent(tab),
+          {/* ÁRBOL DE PESTAÑAS */}
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              padding: 1,
+            }}
+          >
+            {windowSchema && (
+              <List
+                disablePadding
+                dense
+              >
+                {windowSchema.tabs.map(
+                  (
+                    tab,
+                    index
+                  ) => {
 
-                        paddingTop:
-                          level === 0
-                            ? 0.8
-                            : 0.35,
+                    const active =
+                      index === activeTab;
 
-                        paddingBottom:
-                          level === 0
-                            ? 0.8
-                            : 0.35,
+                    const level =
+                      tab.tablevel ?? 0;
 
-                        borderRadius: 1,
-                        marginY: 0.15,
 
-                        ...(
-                          level === 0 &&
-                          !active
-                            ? {
-                                backgroundColor:
-                                  "action.hover",
-                              }
-                            : {}
-                        ),
-                      }}
-                    >
+                    return (
+                      <ListItemButton
+                        key={tab.ad_tab_id}
+                        selected={active}
+                        onClick={() =>
+                          setActiveTab(index)
+                        }
+                        sx={{
+                          paddingLeft:
+                            1.5 +
+                            getTabIndent(tab),
 
-                      {level > 0 && (
-                        <Box
-                          component="span"
-                          sx={{
-                            marginRight: 1,
-                            color: "text.secondary",
-                            fontSize: "0.8rem",
-                          }}
-                        >
-                          └─
-                        </Box>
-                      )}
+                          paddingTop:
+                            level === 0
+                              ? 0.8
+                              : 0.35,
 
-                      <ListItemText
-                        primary={tab.name}
-                        slotProps={{
-                          primary: {
-                            sx: {
-                              fontWeight:
-                                active
-                                  ? 600
-                                  : level === 0
-                                  ? 500
-                                  : 400,
+                          paddingBottom:
+                            level === 0
+                              ? 0.8
+                              : 0.35,
 
-                              fontSize:
-                                level === 0
-                                  ? "0.95rem"
-                                  : "0.9rem",
-                            },
-                          },
+                          borderRadius: 1,
+                          marginY: 0.15,
+
+                          ...(
+                            level === 0 &&
+                            !active
+                              ? {
+                                  backgroundColor:
+                                    "action.hover",
+                                }
+                              : {}
+                          ),
                         }}
-                      />
+                      >
 
-                    </ListItemButton>
-                  );
-                }
-              )}
-            </List>
-          )}
-        </Box>
+                        {level > 0 && (
+                          <Box
+                            component="span"
+                            sx={{
+                              marginRight: 1,
+                              color: "text.secondary",
+                              fontSize: "0.8rem",
+                            }}
+                          >
+                            └─
+                          </Box>
+                        )}
 
-      </Paper>
+                        <ListItemText
+                          primary={tab.name}
+                          slotProps={{
+                            primary: {
+                              sx: {
+                                fontWeight:
+                                  active
+                                    ? 600
+                                    : level === 0
+                                    ? 500
+                                    : 400,
+
+                                fontSize:
+                                  level === 0
+                                    ? "0.95rem"
+                                    : "0.9rem",
+                              },
+                            },
+                          }}
+                        />
+
+                      </ListItemButton>
+                    );
+                  }
+                )}
+              </List>
+            )}
+          </Box>
+
+        </Paper>
+
+      )} 
 
 
       {/* WORKSPACE */}
@@ -514,8 +535,39 @@ function App() {
           minHeight: 0,
           overflow: "hidden",
           padding: 2,
+          paddingTop: 6,
+          position: "relative",
         }}
       >
+
+
+                <Tooltip
+          title={
+            sidebarOpen
+              ? "Ocultar barra lateral"
+              : "Mostrar barra lateral"
+          }
+        >
+          <IconButton
+            size="small"
+            onClick={() =>
+              setSidebarOpen(
+                (current) => !current
+              )
+            }
+            sx={{
+              position: "absolute",
+              top: 8,
+              left: 8,
+              zIndex: 10,
+            }}
+          >
+            {sidebarOpen
+              ? <MenuOpenIcon />
+              : <MenuIcon />}
+          </IconButton>
+        </Tooltip>
+
 
         {windowSchema && selectedTab ? (
           <DynamicTab
