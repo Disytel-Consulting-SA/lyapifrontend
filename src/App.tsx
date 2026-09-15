@@ -300,7 +300,7 @@ function App() {
   return (
       <Box
         sx={{
-          flex: 1,
+          height: "100vh",
           minHeight: 0,
           display: "grid",
           gridTemplateColumns: sidebarOpen
@@ -323,6 +323,7 @@ function App() {
           square
           variant="outlined"
           sx={{
+            height: "100%",
             minHeight: 0,
             display: {
               xs: "none",
