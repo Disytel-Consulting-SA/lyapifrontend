@@ -28,7 +28,7 @@ export interface WindowSchemaTab {
   name: string;
   description?: string;
 
-  seqno: number;
+  seqno?: number | null;
   tablevel: number;
   isinsertrecord: boolean;
 

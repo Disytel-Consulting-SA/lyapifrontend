@@ -1108,7 +1108,7 @@ export default function DynamicTab({
     return value;
   }
 
-  
+
     function isFieldDisplayed(
     field: WindowSchemaField
   ): boolean {
@@ -1143,7 +1143,18 @@ export default function DynamicTab({
 
     const fields = [...tab.fields]
       .filter(isFieldDisplayed)
-      .sort((a, b) => a.seqno - b.seqno);
+      .sort((a, b) => {
+        if (a.seqno == null && b.seqno == null)
+          return 0;
+
+        if (a.seqno == null)
+          return 1;
+
+        if (b.seqno == null)
+          return -1;
+
+        return a.seqno - b.seqno;
+      });
 
     const groups: FormFieldGroup[] = [];
 
