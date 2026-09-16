@@ -111,8 +111,9 @@ function LookupField({
 
   const [options, setOptions] = useState<LookupValue[]>([]);
   const [selectedOption, setSelectedOption] = useState<LookupValue | null>(null);
-  const [inputValue, setInputValue] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [inputValue, setInputValue] =  useState("");
+  const [searchValue, setSearchValue] = useState("");
+  const [loading, setLoading] = useState(false);  
   const [error, setError] = useState<string | null>(null);
 
   const endpoint = field.reference?.endpoint;
@@ -154,7 +155,7 @@ function LookupField({
     setLoading(true);
     setError(null);
 
-    getLookupValues(endpoint, 50, 1, inputValue || undefined, undefined, contextValues)
+    getLookupValues(  endpoint,  50,  1,  searchValue || undefined,  undefined,  contextValues)
       .then((values) => {
         if (!cancelled)
           setOptions(values);
@@ -175,7 +176,7 @@ function LookupField({
     return () => {
       cancelled = true;
     };
-  }, [endpoint, inputValue, contextValues]);
+  }, [endpoint, searchValue, contextValues]);
 
 
   return (
@@ -191,8 +192,21 @@ function LookupField({
         isOptionEqualToValue={(option, selected) => option.value === selected.value}
         inputValue={inputValue}
 
-        onInputChange={(_, newInputValue) => {
+        onInputChange={(
+          _,
+          newInputValue,
+          reason
+        ) => {
+
           setInputValue(newInputValue);
+
+          if (reason === "input") {
+            setSearchValue(newInputValue);
+          }
+
+          if (reason === "clear") {
+            setSearchValue("");
+          }
         }}
 
         onChange={(_, newValue) => {
