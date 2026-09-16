@@ -1108,9 +1108,21 @@ export default function DynamicTab({
     return value;
   }
 
-  function isFieldDisplayed(
+  
+    function isFieldDisplayed(
     field: WindowSchemaField
   ): boolean {
+
+    /*
+     * Las columnas encriptadas pueden formar parte de la
+     * definición original de la ventana de Libertya, pero
+     * no son expuestas por la REST API.
+     *
+     * Por lo tanto tampoco deben renderizarse en el
+     * frontend dinámico.
+     */
+    if (field.isencrypted === true)
+      return false;
 
     if (field.isdisplayed === false)
       return false;

@@ -88,6 +88,7 @@ export interface WindowSchemaField {
   ad_reference_value_id: number;
 
   ismandatory: boolean;
+  isencrypted: boolean;
   iskey: boolean;
   isparent: boolean;
   isselectioncolumn: boolean;
