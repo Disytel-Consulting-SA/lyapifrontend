@@ -131,9 +131,14 @@ function LookupField({
 
     getLookupValues(endpoint, 1, 1, undefined, value, contextValues)
       .then((values) => {
-        if (!cancelled && values.length > 0) {
-          setSelectedOption(values[0]);
-          setInputValue(values[0].name);
+        if (!cancelled) {
+          if (values.length > 0) {
+            setSelectedOption(values[0]);
+            setInputValue(values[0].name);
+          } else {
+            setSelectedOption(null);
+            setInputValue("");
+          }
         }
       })
       .catch((err) => {
