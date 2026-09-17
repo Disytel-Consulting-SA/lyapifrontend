@@ -152,8 +152,8 @@ function LookupField({
 
 
   useEffect(() => {
-    if (!endpoint)
-      return;
+    if (!endpoint || !editable)
+    return;
 
     let cancelled = false;
 
@@ -181,7 +181,7 @@ function LookupField({
     return () => {
       cancelled = true;
     };
-  }, [endpoint, searchValue, contextValues]);
+  }, [endpoint, searchValue, contextValues, editable]);
 
 
   return (
