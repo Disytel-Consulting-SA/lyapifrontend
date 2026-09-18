@@ -92,6 +92,7 @@ export interface WindowSchemaField {
   iskey: boolean;
   isparent: boolean;
   isselectioncolumn: boolean;
+  has_callout?: boolean;
 
   /**
    * Valor inicial efectivo para la creación de

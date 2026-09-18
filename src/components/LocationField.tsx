@@ -30,6 +30,7 @@ import LocationDialog
 import type {
   FieldVisualState,
 } from "../styles/fieldStateStyles";
+import { getFieldStateSx } from "../styles/fieldStateStyles";
 
 
 interface Props {
@@ -190,6 +191,7 @@ export default function LocationField({
     <>
       <TextField
         label={field.name}
+        sx={getFieldStateSx(visualState)}
         value={
           loading
             ? "Cargando..."

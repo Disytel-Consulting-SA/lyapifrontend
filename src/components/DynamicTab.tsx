@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Alert,
@@ -15,9 +15,11 @@ import {
 } from "@mui/material";
 
 import {
+  CalloutValidationError,
   createRecord,
   deleteRecord,
   evaluateRecordState,
+  executeTabFieldCallout,
   getLookupValues,
   getRecord,
   getNewRecordState,
@@ -96,6 +98,38 @@ const numericFieldSx = {
     textAlign: "right",
   },
 };
+
+function toCalloutValue(field: WindowSchemaField, value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const type = field.reference?.type;
+  if (type === "boolean") {
+    return value === true || value === "Y" || value === "true";
+  }
+
+  if (
+    field.columnname.endsWith("_ID") ||
+    type === "integer" ||
+    type === "number" ||
+    type === "amount" ||
+    type === "quantity" ||
+    type === "costprice" ||
+    type === "lookup" ||
+    type === "search"
+  ) {
+    if (value === "") {
+      return null;
+    }
+    const numericValue = Number(value);
+    if (Number.isFinite(numericValue)) {
+      return numericValue;
+    }
+  }
+
+  return value;
+}
 
 /**
  * Lookup remoto para Table / Table Direct.
@@ -225,6 +259,8 @@ function LookupField({
             {...params}
             label={field.name}
             required={field.ismandatory}
+            error={Boolean(error)}
+            helperText={error ?? undefined}
             margin="dense"
             slotProps={{
               ...params.slotProps,
@@ -253,6 +289,13 @@ export default function DynamicTab({
 }: Props) {
 
   const [record, setRecord] = useState<Record<string, unknown>>({});
+  const recordRef = useRef<Record<string, unknown>>({});
+  const dirtyFieldsRef = useRef(new Set<string>());
+  const previousCalloutValuesRef = useRef(new Map<string, unknown>());
+  const queuedFieldsRef = useRef(new Map<string, WindowSchemaField>());
+  const calloutEpochRef = useRef(0);
+  const calloutPendingRef = useRef(false);
+  const stateEvaluationRef = useRef(0);
   const [page, setPage] = useState(initialPage);
   const [totalCount, setTotalCount] = useState(0);
 
@@ -268,6 +311,11 @@ export default function DynamicTab({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [calloutPending, setCalloutPending] = useState(false);
+  const [calloutError, setCalloutError] = useState<string | null>(null);
+  const [calloutMessage, setCalloutMessage] = useState<string | null>(null);
+  const [failedCalloutField, setFailedCalloutField] =
+    useState<WindowSchemaField | null>(null);
 
   const [refreshToken, setRefreshToken] = useState(0);
 
@@ -285,6 +333,15 @@ export default function DynamicTab({
   */
   const [useSameLineLayout, setUseSameLineLayout] =
     useState(true);
+
+  useEffect(() => {
+    recordRef.current = record;
+  }, [record]);
+
+  useEffect(() => () => {
+    calloutEpochRef.current += 1;
+    stateEvaluationRef.current += 1;
+  }, []);
 
 
   function getFieldValue(field: WindowSchemaField): unknown {
@@ -304,22 +361,134 @@ export default function DynamicTab({
 
   function setFieldValue(
     field: WindowSchemaField,
-    value: unknown
+    value: unknown,
+    commitImmediately = false
   ) {
+    const key = field.columnname.toLowerCase();
+    if (Object.is(recordRef.current[key], value)) {
+      return;
+    }
 
-    setRecord((current) => {
-      const updatedRecord = {
-        ...current,
-        [field.columnname.toLowerCase()]: value,
-      };
+    if (isNewRecord && tab.parent_ad_tab_id === undefined && field.has_callout
+        && !previousCalloutValuesRef.current.has(key)) {
+      previousCalloutValuesRef.current.set(key, recordRef.current[key]);
+    }
 
-      void reevaluateRecordState(
-        updatedRecord,
-        field.columnname
+    const updatedRecord = {
+      ...recordRef.current,
+      [key]: value,
+    };
+    recordRef.current = updatedRecord;
+    dirtyFieldsRef.current.add(key);
+    setRecord(updatedRecord);
+    setCalloutMessage(null);
+    if (!failedCalloutField || failedCalloutField.ad_field_id === field.ad_field_id) {
+      setCalloutError(null);
+    }
+
+    if (commitImmediately) {
+      void commitFieldValue(field, updatedRecord);
+    }
+  }
+
+  function buildCalloutValues(
+    currentRecord: Record<string, unknown>
+  ): Record<string, unknown> {
+    const values: Record<string, unknown> = {};
+    for (const field of tab.fields) {
+      const key = field.columnname.toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(currentRecord, key)) {
+        values[field.columnname] = toCalloutValue(field, currentRecord[key]);
+      }
+    }
+    return values;
+  }
+
+  async function commitFieldValue(
+    field: WindowSchemaField,
+    currentRecord = recordRef.current
+  ) {
+    const key = field.columnname.toLowerCase();
+    if (!dirtyFieldsRef.current.has(key)) {
+      return;
+    }
+    if (calloutPendingRef.current) {
+      queuedFieldsRef.current.set(key, field);
+      return;
+    }
+    dirtyFieldsRef.current.delete(key);
+
+    if (!isNewRecord || tab.parent_ad_tab_id !== undefined || !field.has_callout) {
+      await reevaluateRecordState(currentRecord, field.columnname);
+      return;
+    }
+
+    const epoch = ++calloutEpochRef.current;
+    calloutPendingRef.current = true;
+    setCalloutPending(true);
+    setCalloutError(null);
+    setCalloutMessage(null);
+
+    let succeeded = false;
+    try {
+      const result = await executeTabFieldCallout(tab.ad_tab_id, {
+        ad_field_id: field.ad_field_id,
+        value: toCalloutValue(field, currentRecord[key]),
+        values: buildCalloutValues(currentRecord),
+        inserting: true,
+      });
+      if (epoch !== calloutEpochRef.current) {
+        return;
+      }
+
+      const updatedRecord = { ...recordRef.current };
+      for (const [columnName, value] of Object.entries(result.changes ?? {})) {
+        const changedKey = columnName.toLowerCase();
+        if (!dirtyFieldsRef.current.has(changedKey)) {
+          updatedRecord[changedKey] = value;
+        }
+      }
+      recordRef.current = updatedRecord;
+      setRecord(updatedRecord);
+      setCalloutMessage(result.message || null);
+      setFailedCalloutField(null);
+      previousCalloutValuesRef.current.delete(key);
+      await reevaluateRecordState(updatedRecord, field.columnname);
+      succeeded = true;
+    } catch (error) {
+      if (epoch !== calloutEpochRef.current) {
+        return;
+      }
+      console.error(`Error ejecutando callout para ${field.columnname}`, error);
+      if (error instanceof CalloutValidationError) {
+        const previousValue = previousCalloutValuesRef.current.get(key);
+        const restoredRecord = { ...recordRef.current, [key]: previousValue };
+        recordRef.current = restoredRecord;
+        setRecord(restoredRecord);
+        previousCalloutValuesRef.current.delete(key);
+        dirtyFieldsRef.current.delete(key);
+        setFailedCalloutField(null);
+      } else {
+        dirtyFieldsRef.current.add(key);
+        setFailedCalloutField(field);
+      }
+      setCalloutError(
+        error instanceof Error ? error.message : "No fue posible actualizar los campos"
       );
-
-      return updatedRecord;
-    });
+    } finally {
+      if (epoch === calloutEpochRef.current) {
+        calloutPendingRef.current = false;
+        setCalloutPending(false);
+        while (succeeded && queuedFieldsRef.current.size > 0 && !calloutPendingRef.current) {
+          const nextField = queuedFieldsRef.current.values().next().value;
+          if (!nextField) {
+            break;
+          }
+          queuedFieldsRef.current.delete(nextField.columnname.toLowerCase());
+          void commitFieldValue(nextField);
+        }
+      }
+    }
   }
 
 
@@ -339,7 +508,7 @@ export default function DynamicTab({
     const state = getFieldState(field);
 
     if (state)
-      return !state.readonly &&
+      return !calloutPending && !state.readonly &&
         (isNewRecord || isEditing);
 
     if (isNewRecord)
@@ -518,7 +687,7 @@ export default function DynamicTab({
     currentRecord: Record<string, unknown>,
     changedColumn?: string
   ) {
-
+    const evaluation = ++stateEvaluationRef.current;
     try {
       const state =
         await evaluateRecordState(
@@ -542,7 +711,9 @@ export default function DynamicTab({
           }
         );
 
-      setFieldStates(state.fields);
+      if (evaluation === stateEvaluationRef.current) {
+        setFieldStates(state.fields);
+      }
 
     } catch (error) {
       console.error(
@@ -682,6 +853,14 @@ export default function DynamicTab({
       );
 
       setFieldStates(state.fields);
+      calloutEpochRef.current += 1;
+      dirtyFieldsRef.current.clear();
+      previousCalloutValuesRef.current.clear();
+      queuedFieldsRef.current.clear();
+      recordRef.current = newRecord;
+      setCalloutError(null);
+      setCalloutMessage(null);
+      setFailedCalloutField(null);
       setIsNewRecord(true);
       setRecord(newRecord);
 
@@ -773,6 +952,9 @@ export default function DynamicTab({
 
 
   async function handleSaveNewRecord() {
+    if (calloutPendingRef.current || failedCalloutField) {
+      return;
+    }
     if (!tab.data_endpoint) {
       setSaveError(
         "La pestaña no posee un endpoint REST configurado"
@@ -845,6 +1027,8 @@ export default function DynamicTab({
       * al nuevo registro, se recuperará desde REST.
       */
       setIsNewRecord(false);
+      calloutEpochRef.current += 1;
+      stateEvaluationRef.current += 1;
 
     } catch (error) {
       console.error(
@@ -1312,7 +1496,8 @@ export default function DynamicTab({
                   (event) =>
                     setFieldValue(
                       field,
-                      event.target.checked
+                      event.target.checked,
+                      true
                     )
                 }
               />
@@ -1342,7 +1527,8 @@ export default function DynamicTab({
             (value) =>
               setFieldValue(
                 field,
-                value
+                value,
+                true
               )
           }
         />
@@ -1363,7 +1549,8 @@ export default function DynamicTab({
             (value) =>
               setFieldValue(
                 field,
-                value
+                value,
+                true
               )
           }
         />
@@ -1386,7 +1573,8 @@ export default function DynamicTab({
             (value) =>
               setFieldValue(
                 field,
-                value
+                value,
+                true
               )
           }
         />
@@ -1417,7 +1605,8 @@ export default function DynamicTab({
           onChange={(event) =>
             setFieldValue(
               field,
-              event.target.value
+              event.target.value,
+              true
             )
           }
           slotProps={{
@@ -1489,6 +1678,7 @@ export default function DynamicTab({
                 event.target.value
               )
           }
+          onBlur={() => void commitFieldValue(field)}
           fullWidth
           margin="dense"
           slotProps={{
@@ -1529,6 +1719,7 @@ export default function DynamicTab({
                 event.target.value
               )
           }
+          onBlur={() => void commitFieldValue(field)}
           fullWidth
           margin="dense"
           slotProps={{
@@ -1571,6 +1762,7 @@ export default function DynamicTab({
                 event.target.value
               )
           }
+          onBlur={() => void commitFieldValue(field)}
           fullWidth
           margin="dense"
           slotProps={{
@@ -1628,6 +1820,7 @@ export default function DynamicTab({
                 event.target.value
               )
           }
+          onBlur={() => void commitFieldValue(field)}
           fullWidth
           margin="dense"
           slotProps={{
@@ -1669,6 +1862,7 @@ export default function DynamicTab({
                 event.target.value
               )
           }
+          onBlur={() => void commitFieldValue(field)}
           fullWidth
           multiline
           minRows={3}
@@ -1706,6 +1900,7 @@ export default function DynamicTab({
               event.target.value
             )
         }
+        onBlur={() => void commitFieldValue(field)}
         fullWidth
         margin="dense"
         disabled={!editable}
@@ -1736,6 +1931,16 @@ export default function DynamicTab({
 
 
   useEffect(() => {
+    calloutEpochRef.current += 1;
+    stateEvaluationRef.current += 1;
+    calloutPendingRef.current = false;
+    dirtyFieldsRef.current.clear();
+    previousCalloutValuesRef.current.clear();
+    queuedFieldsRef.current.clear();
+    setCalloutPending(false);
+    setCalloutError(null);
+    setCalloutMessage(null);
+    setFailedCalloutField(null);
     setIsNewRecord(false);
     setIsEditing(false);
     setOriginalRecord(null);
@@ -2153,7 +2358,7 @@ export default function DynamicTab({
                     onClick={
                       handleSaveNewRecord
                     }
-                    disabled={saving}
+                    disabled={saving || calloutPending || failedCalloutField !== null}
                   >
                     {saving
                       ? "Guardando..."
@@ -2162,6 +2367,16 @@ export default function DynamicTab({
 
                   <Button
                     onClick={() => {
+                      calloutEpochRef.current += 1;
+                      stateEvaluationRef.current += 1;
+                      calloutPendingRef.current = false;
+                      dirtyFieldsRef.current.clear();
+                      previousCalloutValuesRef.current.clear();
+                      queuedFieldsRef.current.clear();
+                      setCalloutPending(false);
+                      setCalloutError(null);
+                      setCalloutMessage(null);
+                      setFailedCalloutField(null);
                       setSaveError(null);
                       setIsNewRecord(false);
                     }}
@@ -2226,6 +2441,36 @@ export default function DynamicTab({
               flexShrink: 0,
             }}
           >
+            {calloutPending && (
+              <Alert severity="info" sx={{ marginBottom: 2 }}>
+                Actualizando campos...
+              </Alert>
+            )}
+
+            {calloutError && (
+              <Alert
+                severity="error"
+                sx={{ marginBottom: 2 }}
+                action={failedCalloutField ? (
+                  <Button
+                    color="inherit"
+                    size="small"
+                    onClick={() => void commitFieldValue(failedCalloutField)}
+                  >
+                    Reintentar
+                  </Button>
+                ) : undefined}
+              >
+                {calloutError}
+              </Alert>
+            )}
+
+            {calloutMessage && (
+              <Alert severity="info" sx={{ marginBottom: 2 }}>
+                {calloutMessage}
+              </Alert>
+            )}
+
             {saveError && (
               <Alert
                 severity="error"

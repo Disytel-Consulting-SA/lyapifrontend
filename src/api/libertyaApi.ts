@@ -61,6 +61,20 @@ export interface WindowRecordStateRequest {
   inserting?: boolean;
 }
 
+export interface WindowCalloutRequest {
+  ad_field_id: number;
+  value: unknown;
+  values: Record<string, unknown>;
+  inserting: true;
+}
+
+export interface WindowCalloutResponse {
+  changes: Record<string, unknown>;
+  message: string | null;
+}
+
+export class CalloutValidationError extends Error {}
+
 export interface Location {
   c_location_id: number;
 
@@ -226,7 +240,8 @@ export async function selectRole(roleId: number): Promise<string> {
  */
 async function authenticatedFetch(
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  expireOnForbidden = true
 ): Promise<Response> {
 
   const token =
@@ -291,7 +306,7 @@ async function authenticatedFetch(
    * Invalidamos la sesión local y notificamos
    * a App mediante SESSION_EXPIRED_EVENT.
    */
-  if (response.status === 403) {
+  if (response.status === 401 || (response.status === 403 && expireOnForbidden)) {
 
     expireSession();
   }
@@ -409,6 +424,35 @@ export async function evaluateRecordState(
   if (!response.ok) {
     throw new Error(
       `Error reevaluando estado para pestaña ${tabId}: ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
+export async function executeTabFieldCallout(
+  tabId: number,
+  request: WindowCalloutRequest
+): Promise<WindowCalloutResponse> {
+  const response = await authenticatedFetch(
+    `${BASE_URL}/v1.0/tabs/${tabId}/callout`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    },
+    false
+  );
+
+  if (!response.ok) {
+    if (response.status === 400) {
+      const error = await response.json().catch(() => null) as Partial<WindowCalloutResponse> | null;
+      throw new CalloutValidationError(error?.message ?? "Los datos del callout no son válidos");
+    }
+    throw new Error(
+      `Error ejecutando callout para pestaña ${tabId}: ${response.status}`
     );
   }
 
