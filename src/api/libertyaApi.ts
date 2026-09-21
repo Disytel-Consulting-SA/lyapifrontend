@@ -789,11 +789,9 @@ export async function getLookupValues(
 }
 
 /**
- * Crea un nuevo registro utilizando directamente
- * WindowSchemaTab.data_endpoint.
+ * Crea un nuevo registro utilizando el endpoint de creación resuelto por la pestaña dinámica.
  *
- * El backend devuelve como body el identificador
- * del registro creado.
+ * El backend devuelve como body el identificador del registro creado.
  */
 export async function createRecord(
   dataEndpoint: string,

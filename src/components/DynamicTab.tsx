@@ -956,9 +956,12 @@ export default function DynamicTab({
     if (calloutPendingRef.current || failedCalloutField) {
       return;
     }
-    if (!tab.data_endpoint) {
+
+    const createEndpoint = tab.create_endpoint ?? tab.data_endpoint;
+
+    if (!createEndpoint) {
       setSaveError(
-        "La pestaña no posee un endpoint REST configurado"
+        "La pestaña no posee un endpoint REST configurado para creación"
       );
       return;
     }
@@ -993,7 +996,7 @@ export default function DynamicTab({
 
       const createdId =
         await createRecord(
-          tab.data_endpoint,
+          createEndpoint,
           payload
         );
 
@@ -1034,7 +1037,7 @@ export default function DynamicTab({
 
     } catch (error) {
       console.error(
-        `Error creando registro en ${tab.data_endpoint}`,
+        `Error creando registro en ${createEndpoint}`,
         error
       );
 
@@ -2094,9 +2097,8 @@ export default function DynamicTab({
         title={
           <>
             <div>Tabla: {tab.tablename}</div>
-            <div>
-              Endpoint: {tab.data_endpoint ?? "sin endpoint"}
-            </div>
+            <div>Endpoint: {tab.data_endpoint ?? "sin endpoint"}</div>
+            <div>Creation: {tab.create_endpoint ?? tab.data_endpoint}</div>
 
             {tab.parent_ad_tab_id !== undefined && (
               <div>

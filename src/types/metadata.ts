@@ -35,6 +35,8 @@ export interface WindowSchemaTab {
   ad_table_id: number;
   tablename: string;
   data_endpoint?: string;
+  // Endpoint alternativo para la creación de un nuevo registro. Si no esta definido, se utiliza el mismo endpoint de data_endpoint.
+  create_endpoint?: string;
   pk_columns?: string[];
 
   /**
