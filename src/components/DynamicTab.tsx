@@ -435,29 +435,23 @@ export default function DynamicTab({
     }
 
 
-    let recordId: number | undefined;
+    let recordIds: string[] | undefined;
 
     if (isEditing) {
-      const keyValues = getRecordKeyValues();
+      const keyValues =
+        getRecordKeyValues();
 
-      if (!keyValues || keyValues.length !== 1) {
+      if (!keyValues) {
         setCalloutError(
-          "No fue posible determinar el registro para ejecutar el callout"
+          "No fue posible determinar la clave del registro para ejecutar el callout"
         );
         return;
       }
 
-      const numericId =
-        Number(keyValues[0]);
-
-      if (!Number.isInteger(numericId)) {
-        setCalloutError(
-          "El identificador del registro no es válido"
+      recordIds =
+        keyValues.map(
+          (value) => String(value)
         );
-        return;
-      }
-
-      recordId = numericId;
     }
 
 
@@ -490,9 +484,9 @@ export default function DynamicTab({
           inserting:
             isNewRecord,
 
-          ...(recordId !== undefined
-            ? { record_id: recordId }
-            : {}),
+          ...(recordIds !== undefined
+          ? { record_ids: recordIds }
+          : {}),
         }
       );
 

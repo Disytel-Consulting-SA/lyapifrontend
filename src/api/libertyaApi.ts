@@ -66,7 +66,7 @@ export interface WindowCalloutRequest {
   value: unknown;
   values: Record<string, unknown>;
   inserting: boolean;
-  record_id?: number;
+  record_ids?: string[];
 }
 
 export interface WindowCalloutResponse {
