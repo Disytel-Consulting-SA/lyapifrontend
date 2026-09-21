@@ -370,10 +370,15 @@ export default function DynamicTab({
       return;
     }
 
-    if (isNewRecord && tab.parent_ad_tab_id === undefined && field.has_callout
-        && !previousCalloutValuesRef.current.has(key)) {
-      previousCalloutValuesRef.current.set(key, recordRef.current[key]);
-    }
+  if ((isNewRecord || isEditing)
+      && tab.parent_ad_tab_id === undefined
+      && field.has_callout
+      && !previousCalloutValuesRef.current.has(key)) {
+    previousCalloutValuesRef.current.set(
+      key,
+      recordRef.current[key]
+    );
+  }
 
     const updatedRecord = {
       ...recordRef.current,
@@ -419,10 +424,42 @@ export default function DynamicTab({
     }
     dirtyFieldsRef.current.delete(key);
 
-    if (!isNewRecord || tab.parent_ad_tab_id !== undefined || !field.has_callout) {
-      await reevaluateRecordState(currentRecord, field.columnname);
+    if ((!isNewRecord && !isEditing)
+        || tab.parent_ad_tab_id !== undefined
+        || !field.has_callout) {
+      await reevaluateRecordState(
+        currentRecord,
+        field.columnname
+      );
       return;
     }
+
+
+    let recordId: number | undefined;
+
+    if (isEditing) {
+      const keyValues = getRecordKeyValues();
+
+      if (!keyValues || keyValues.length !== 1) {
+        setCalloutError(
+          "No fue posible determinar el registro para ejecutar el callout"
+        );
+        return;
+      }
+
+      const numericId =
+        Number(keyValues[0]);
+
+      if (!Number.isInteger(numericId)) {
+        setCalloutError(
+          "El identificador del registro no es válido"
+        );
+        return;
+      }
+
+      recordId = numericId;
+    }
+
 
     const epoch = ++calloutEpochRef.current;
     calloutPendingRef.current = true;
@@ -432,12 +469,33 @@ export default function DynamicTab({
 
     let succeeded = false;
     try {
-      const result = await executeTabFieldCallout(tab.ad_tab_id, {
-        ad_field_id: field.ad_field_id,
-        value: toCalloutValue(field, currentRecord[key]),
-        values: buildCalloutValues(currentRecord),
-        inserting: true,
-      });
+
+      const result = await executeTabFieldCallout(
+        tab.ad_tab_id,
+        {
+          ad_field_id:
+            field.ad_field_id,
+
+          value:
+            toCalloutValue(
+              field,
+              currentRecord[key]
+            ),
+
+          values:
+            buildCalloutValues(
+              currentRecord
+            ),
+
+          inserting:
+            isNewRecord,
+
+          ...(recordId !== undefined
+            ? { record_id: recordId }
+            : {}),
+        }
+      );
+
       if (epoch !== calloutEpochRef.current) {
         return;
       }
@@ -2431,7 +2489,7 @@ export default function DynamicTab({
                 : "Sin registros"}
             </Typography>
 
-            {isNewRecord && (
+            {(isNewRecord || isEditing) && (
               <Box
                 role={calloutPending ? "status" : undefined}
                 aria-label={calloutPending ? "Actualizando campos" : undefined}

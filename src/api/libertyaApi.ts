@@ -65,7 +65,8 @@ export interface WindowCalloutRequest {
   ad_field_id: number;
   value: unknown;
   values: Record<string, unknown>;
-  inserting: true;
+  inserting: boolean;
+  record_id?: number;
 }
 
 export interface WindowCalloutResponse {
