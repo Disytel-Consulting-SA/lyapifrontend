@@ -90,6 +90,7 @@ interface LookupFieldProps {
   rawValue: unknown;
   editable: boolean;
   visualState: FieldVisualState;
+  requiredEmpty: boolean;
   contextValues: Record<string, string>;
   onChange: (value: string) => void;
 }
@@ -140,6 +141,7 @@ function LookupField({
   rawValue,
   editable,
   visualState,
+  requiredEmpty,
   contextValues,
   onChange,
 }: LookupFieldProps) {
@@ -270,7 +272,7 @@ function LookupField({
                 shrink: true,
               },
             }}
-            sx={getFieldStateSx(visualState)}
+            sx={  getFieldStateSx(visualState, requiredEmpty)  }
           />
         )}
       />
@@ -598,6 +600,37 @@ export default function DynamicTab({
 
     return "view";
   }
+
+
+
+  function isRequiredFieldEmpty(
+      field: WindowSchemaField
+    ): boolean {
+
+      if (!field.ismandatory) {
+        return false;
+      }
+
+      const state = getFieldState(field);
+
+      if (
+        state?.displayed === false ||
+        state?.readonly === true
+      ) {
+        return false;
+      }
+
+      const value = getFieldValue(field);
+
+      return (
+        value === undefined ||
+        value === null ||
+        (
+          typeof value === "string" &&
+          value.trim() === ""
+        )
+      );
+    }
 
 
   function getParentKeyValue(): unknown {
@@ -1629,6 +1662,7 @@ export default function DynamicTab({
           rawValue={rawValue}
           editable={editable}
           visualState={visualState}
+          requiredEmpty={isRequiredFieldEmpty(field)}
           contextValues={lookupContextValues}
           onChange={
             (value) =>
@@ -1676,7 +1710,7 @@ export default function DynamicTab({
             },
           }}
           sx={[
-            getFieldStateSx(visualState),
+            getFieldStateSx(visualState, isRequiredFieldEmpty(field)),
             {
               marginTop: 0.375,
             },
@@ -1748,9 +1782,7 @@ export default function DynamicTab({
             },
           }}
           sx={
-            getFieldStateSx(
-              visualState
-            )
+            getFieldStateSx(visualState, isRequiredFieldEmpty(field))
           }
         />
       );
@@ -1835,7 +1867,7 @@ export default function DynamicTab({
             },
           }}
           sx={[
-            getFieldStateSx(visualState),
+            getFieldStateSx(visualState, isRequiredFieldEmpty(field)),
             numericFieldSx,
           ]}
         />
@@ -1893,7 +1925,7 @@ export default function DynamicTab({
             },
           }}
           sx={[
-            getFieldStateSx(visualState),
+            getFieldStateSx(visualState, isRequiredFieldEmpty(field)),
             numericFieldSx,
           ]}
         />
@@ -1935,7 +1967,8 @@ export default function DynamicTab({
           }}
           sx={
             getFieldStateSx(
-              visualState
+              visualState,
+              isRequiredFieldEmpty(field)
             )
           }
         />
@@ -1972,7 +2005,7 @@ export default function DynamicTab({
         }}
         sx={
           getFieldStateSx(
-            visualState
+            visualState, isRequiredFieldEmpty(field)
           )
         }
       />

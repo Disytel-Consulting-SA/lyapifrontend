@@ -104,10 +104,23 @@ function getReadOnlyStyle(theme: Theme): SystemStyleObject<Theme> {
 
 
 export function getFieldStateSx(
-  state: FieldVisualState
+  state: FieldVisualState,
+  requiredEmpty = false
 ): (theme: Theme) => SystemStyleObject<Theme> {
 
   return (theme: Theme) => {
+    if (requiredEmpty && state === "edit") {
+      const dark = theme.palette.mode === "dark";
+
+      return {
+        "& .MuiInputBase-root": {
+          backgroundColor: dark
+            ? "rgba(237, 170, 20, 0.10)"
+            : "rgba(237, 170, 20, 0.07)",
+        },
+      };
+    }
+
     if (state === "view")
       return getViewStyle(theme);
 
