@@ -1639,6 +1639,7 @@ export default function DynamicTab({
           rawValue={rawValue}
           editable={editable}
           visualState={visualState}
+          requiredEmpty={isRequiredFieldEmpty(field)}
           onChange={
             (value) =>
               setFieldValue(

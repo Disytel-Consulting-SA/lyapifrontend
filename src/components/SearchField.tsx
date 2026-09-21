@@ -27,6 +27,7 @@ interface Props {
   rawValue: unknown;
   editable: boolean;
   visualState: FieldVisualState;
+  requiredEmpty: boolean;
   onChange: (value: string) => void;
 }
 
@@ -36,6 +37,7 @@ export default function SearchField({
   rawValue,
   editable,
   visualState,
+  requiredEmpty,
   onChange,
 }: Props) {
 
@@ -173,7 +175,7 @@ export default function SearchField({
               shrink: true,
             },
           }}
-          sx={getFieldStateSx(visualState)}
+          sx={getFieldStateSx(visualState, requiredEmpty)}
         />
 
         <Button

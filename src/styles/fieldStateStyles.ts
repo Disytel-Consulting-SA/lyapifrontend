@@ -8,96 +8,51 @@ export type FieldVisualState =
   | "readonly";
 
 
-function getViewStyle(theme: Theme): SystemStyleObject<Theme> {
+function getViewStyle(
+  theme: Theme
+): SystemStyleObject<Theme> {
+
   const dark = theme.palette.mode === "dark";
 
   return {
     "& .MuiInputBase-root": {
       backgroundColor: dark
-        ? theme.palette.background.paper
-        : "#ffffff",
-    },
-
-    "& .MuiInputBase-input.Mui-disabled": {
-      WebkitTextFillColor: dark
-        ? "#D0D0D0"
-        : "#555555",
-    },
-
-    "& .MuiSelect-select.Mui-disabled": {
-      WebkitTextFillColor: dark
-        ? "#D0D0D0"
-        : "#555555",
-    },
-
-    "& .MuiInputLabel-root.Mui-disabled": {
-      color: dark
-        ? "#C0C0C0"
-        : "#666666",
-    },
-
-    "& .MuiOutlinedInput-notchedOutline": {
-      borderColor: dark
-        ? "#616A6F"
-        : "#aaaaaa",
-    },
-
-    "& .MuiFormHelperText-root.Mui-disabled": {
-      color: dark
-        ? "#999999"
-        : "#888888",
+        ? "rgba(255,255,255,0.04)"
+        : "rgba(0,0,0,0.025)",
     },
   };
 }
 
 
-function getEditStyle(theme: Theme): SystemStyleObject<Theme> {
+function getEditStyle(
+  _theme: Theme
+): SystemStyleObject<Theme> {
+
   return {
     "& .MuiInputBase-root": {
-      backgroundColor: theme.palette.background.paper,
+      backgroundColor: "transparent",
     },
   };
 }
 
 
-function getReadOnlyStyle(theme: Theme): SystemStyleObject<Theme> {
+function getReadOnlyStyle(
+  theme: Theme
+): SystemStyleObject<Theme> {
+
   const dark = theme.palette.mode === "dark";
 
   return {
     "& .MuiInputBase-root": {
       backgroundColor: dark
-        ? "#2A2A2A"
-        : "#f1f1f1",
+        ? "rgba(255,255,255,0.06)"
+        : "rgba(0,0,0,0.045)",
     },
-
     "& .MuiInputBase-input.Mui-disabled": {
-      WebkitTextFillColor: dark
-        ? "#AFAFAF"
-        : "#666666",
+      WebkitTextFillColor: theme.palette.text.primary,
     },
-
-    "& .MuiSelect-select.Mui-disabled": {
-      WebkitTextFillColor: dark
-        ? "#AFAFAF"
-        : "#666666",
-    },
-
     "& .MuiInputLabel-root.Mui-disabled": {
-      color: dark
-        ? "#999999"
-        : "#707070",
-    },
-
-    "& .MuiOutlinedInput-notchedOutline": {
-      borderColor: dark
-        ? "#4A4A4A"
-        : "#C0C0C0",
-    },
-
-    "& .MuiFormHelperText-root.Mui-disabled": {
-      color: dark
-        ? "#808080"
-        : "#888888",
+      color: theme.palette.text.secondary,
     },
   };
 }
@@ -109,6 +64,7 @@ export function getFieldStateSx(
 ): (theme: Theme) => SystemStyleObject<Theme> {
 
   return (theme: Theme) => {
+
     if (requiredEmpty && state === "edit") {
       const dark = theme.palette.mode === "dark";
 
@@ -121,11 +77,13 @@ export function getFieldStateSx(
       };
     }
 
-    if (state === "view")
+    if (state === "view") {
       return getViewStyle(theme);
+    }
 
-    if (state === "edit")
+    if (state === "edit") {
       return getEditStyle(theme);
+    }
 
     return getReadOnlyStyle(theme);
   };
@@ -135,26 +93,26 @@ export function getFieldStateSx(
 export function getReadOnlyContainerSx(
   readOnly: boolean
 ): (theme: Theme) => SystemStyleObject<Theme> {
+
   return (theme: Theme) => {
-    if (!readOnly)
+
+    if (!readOnly) {
       return {};
+    }
 
     const dark = theme.palette.mode === "dark";
 
     return {
-      backgroundColor: dark ? "#2A2A2A" : "#f1f1f1",
-      color: dark ? "#AFAFAF" : "#666666",
-      borderRadius: 1,
-      paddingLeft: 1,
-      paddingTop: 0.5,
-      paddingBottom: 0.5,
+      opacity: 1,
 
-      "& .MuiFormControlLabel-label.Mui-disabled": {
-        color: dark ? "#999999" : "#707070",
+      "& .MuiCheckbox-root.Mui-disabled": {
+        color: dark
+          ? "rgba(255,255,255,0.50)"
+          : "rgba(0,0,0,0.45)",
       },
 
-      "& .MuiTypography-root": {
-        color: dark ? "#808080" : "#888888",
+      "& .MuiFormControlLabel-label.Mui-disabled": {
+        color: theme.palette.text.primary,
       },
     };
   };
