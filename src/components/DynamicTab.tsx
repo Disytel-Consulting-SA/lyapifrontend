@@ -7,6 +7,7 @@ import {
   Button,
   ButtonGroup,
   Checkbox,
+  CircularProgress,
   FormControlLabel,
   MenuItem,
   TextField,
@@ -965,7 +966,8 @@ export default function DynamicTab({
     const missingFields =
       validateCreateRecord(
         tab,
-        record
+        record,
+        fieldStates
       );
 
     if (missingFields.length > 0) {
@@ -1076,7 +1078,8 @@ export default function DynamicTab({
     const missingFields =
       validateUpdateRecord(
         tab,
-        record
+        record,
+        fieldStates
       );
 
     if (missingFields.length > 0) {
@@ -2426,6 +2429,16 @@ export default function DynamicTab({
                 : "Sin registros"}
             </Typography>
 
+            {isNewRecord && (
+              <Box
+                role={calloutPending ? "status" : undefined}
+                aria-label={calloutPending ? "Actualizando campos" : undefined}
+                sx={{ width: 20, height: 20, flexShrink: 0 }}
+              >
+                {calloutPending && <CircularProgress size={18} />}
+              </Box>
+            )}
+
 
             {searchFilter && (
               <Typography variant="body2">
@@ -2441,12 +2454,6 @@ export default function DynamicTab({
               flexShrink: 0,
             }}
           >
-            {calloutPending && (
-              <Alert severity="info" sx={{ marginBottom: 2 }}>
-                Actualizando campos...
-              </Alert>
-            )}
-
             {calloutError && (
               <Alert
                 severity="error"

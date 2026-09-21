@@ -2,6 +2,7 @@ import type {
   WindowSchemaField,
   WindowSchemaTab,
 } from "../types/metadata";
+import type { WindowRecordFieldState } from "../api/libertyaApi";
 
 
 /*
@@ -275,13 +276,22 @@ export function buildCreatePayload(
  */
 export function validateCreateRecord(
   tab: WindowSchemaTab,
-  record: Record<string, unknown>
+  record: Record<string, unknown>,
+  fieldStates: WindowRecordFieldState[]
 ): WindowSchemaField[] {
 
   return tab.fields.filter(
     (field) => {
 
       if (!field.ismandatory) {
+        return false;
+      }
+
+      const state = fieldStates.find(
+        (candidate) => candidate.ad_field_id === field.ad_field_id
+      );
+
+      if (!state || !state.displayed || state.readonly || field.isencrypted === true) {
         return false;
       }
 
@@ -379,11 +389,19 @@ export function buildUpdatePayload(
  */
 export function validateUpdateRecord(
   tab: WindowSchemaTab,
-  record: Record<string, unknown>
+  record: Record<string, unknown>,
+  fieldStates: WindowRecordFieldState[]
 ): WindowSchemaField[] {
 
   return tab.fields.filter((field) => {
     if (!field.ismandatory)
+      return false;
+
+    const state = fieldStates.find(
+      (candidate) => candidate.ad_field_id === field.ad_field_id
+    );
+
+    if (field.isencrypted === true || state?.displayed === false || state?.readonly === true)
       return false;
 
     if (field.isdisplayed === false)
