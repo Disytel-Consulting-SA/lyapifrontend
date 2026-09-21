@@ -634,30 +634,33 @@ export default function DynamicTab({
       return undefined;
     }
 
-    const keyField =
-      parentTab.fields.find(
-        (field) => field.iskey
-      );
+    const values: Record<string, string> = {};
 
-    if (!keyField)
-      return undefined;
+    for (const field of parentTab.fields) {
+      const value =
+        parentRecord[
+          field.columnname.toLowerCase()
+        ];
 
-    const parentValue =
-      parentRecord[
-        keyField.columnname.toLowerCase()
-      ];
+      if (
+        value === undefined ||
+        value === null
+      ) {
+        continue;
+      }
 
-    if (
-      parentValue === undefined ||
-      parentValue === null
-    ) {
-      return undefined;
+      if (typeof value === "boolean") {
+        values[field.columnname] =
+          value ? "Y" : "N";
+      } else {
+        values[field.columnname] =
+          String(value);
+      }
     }
 
-    return {
-      [keyField.columnname]:
-        String(parentValue),
-    };
+    return Object.keys(values).length > 0
+      ? values
+      : undefined;
   }
 
 
