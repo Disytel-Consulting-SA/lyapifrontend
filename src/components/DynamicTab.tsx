@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   ButtonGroup,
@@ -21,7 +20,6 @@ import {
   deleteRecord,
   evaluateRecordState,
   executeTabFieldCallout,
-  getLookupValues,
   getRecord,
   getNewRecordState,
   getRecordByKey,
@@ -29,7 +27,6 @@ import {
 } from "../api/libertyaApi";
 
 import type {
-  LookupValue,
   WindowRecordFieldState,
 } from "../api/libertyaApi";
 
@@ -58,7 +55,9 @@ import SearchField from "./SearchField";
 import LocationField from "./LocationField";
 import RecordSearchDialog from "./RecordSearchDialog";
 import RecordGrid from "./RecordGrid";
+import RecordList from "./RecordList";
 
+import LookupField from "./LookupField";
 
 interface Props {
   tab: WindowSchemaTab;
@@ -85,15 +84,6 @@ interface FormFieldGroup {
   rows: FormFieldRow[];
 }
 
-interface LookupFieldProps {
-  field: WindowSchemaField;
-  rawValue: unknown;
-  editable: boolean;
-  visualState: FieldVisualState;
-  requiredEmpty: boolean;
-  contextValues: Record<string, string>;
-  onChange: (value: string) => void;
-}
 
 const numericFieldSx = {
   "& input": {
@@ -131,153 +121,6 @@ function toCalloutValue(field: WindowSchemaField, value: unknown): unknown {
   }
 
   return value;
-}
-
-/**
- * Lookup remoto para Table / Table Direct.
- */
-function LookupField({
-  field,
-  rawValue,
-  editable,
-  visualState,
-  requiredEmpty,
-  contextValues,
-  onChange,
-}: LookupFieldProps) {
-
-  const [options, setOptions] = useState<LookupValue[]>([]);
-  const [selectedOption, setSelectedOption] = useState<LookupValue | null>(null);
-  const [inputValue, setInputValue] =  useState("");
-  const [searchValue, setSearchValue] = useState("");
-  const [loading, setLoading] = useState(false);  
-  const [error, setError] = useState<string | null>(null);
-
-  const endpoint = field.reference?.endpoint;
-  const value = rawValue === null || rawValue === undefined ? "" : String(rawValue);
-
-
-  useEffect(() => {
-    if (!endpoint || value === "") {
-      setSelectedOption(null);
-      setInputValue("");
-      return;
-    }
-
-    let cancelled = false;
-
-    getLookupValues(endpoint, 1, 1, undefined, value, contextValues)
-      .then((values) => {
-        if (!cancelled) {
-          if (values.length > 0) {
-            setSelectedOption(values[0]);
-            setInputValue(values[0].name);
-          } else {
-            setSelectedOption(null);
-            setInputValue("");
-          }
-        }
-      })
-      .catch((err) => {
-        console.error(`Error resolviendo valor ${value} en ${endpoint}`, err);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [endpoint, value, contextValues]);
-
-
-  useEffect(() => {
-    if (!endpoint || !editable)
-    return;
-
-    let cancelled = false;
-
-    setLoading(true);
-    setError(null);
-
-    getLookupValues(  endpoint,  50,  1,  searchValue || undefined,  undefined,  contextValues)
-      .then((values) => {
-        if (!cancelled)
-          setOptions(values);
-      })
-      .catch((err) => {
-        console.error(`Error recuperando lookup ${endpoint}`, err);
-
-        if (!cancelled) {
-          setOptions([]);
-          setError("No fue posible cargar los valores");
-        }
-      })
-      .finally(() => {
-        if (!cancelled)
-          setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [endpoint, searchValue, contextValues, editable]);
-
-
-  return (
-    <Box>
-      <Autocomplete
-        fullWidth
-        options={options}
-        value={selectedOption}
-        loading={loading}
-        disabled={!editable}
-        filterOptions={(x) => x}
-        getOptionLabel={(option) => option.name}
-        isOptionEqualToValue={(option, selected) => option.value === selected.value}
-        inputValue={inputValue}
-
-        onInputChange={(
-          _,
-          newInputValue,
-          reason
-        ) => {
-
-          setInputValue(newInputValue);
-
-          if (reason === "input") {
-            setSearchValue(newInputValue);
-          }
-
-          if (reason === "clear") {
-            setSearchValue("");
-          }
-        }}
-
-        onChange={(_, newValue) => {
-          setSelectedOption(newValue);
-          setInputValue(newValue ? newValue.name : "");
-          onChange(newValue ? newValue.value : "");
-        }}
-
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label={field.name}
-            required={field.ismandatory}
-            error={Boolean(error)}
-            helperText={error ?? undefined}
-            margin="dense"
-            slotProps={{
-              ...params.slotProps,
-              inputLabel: {
-                ...params.slotProps.inputLabel,
-                shrink: true,
-              },
-            }}
-            sx={  getFieldStateSx(visualState, requiredEmpty)  }
-          />
-        )}
-      />
-    </Box>
-  );
 }
 
 
@@ -326,7 +169,7 @@ export default function DynamicTab({
   const [searchFilter, setSearchFilter] = useState("");
 
   const [viewMode, setViewMode] =
-    useState<"form" | "grid">("form");
+    useState<"form" | "grid" | "list">("form");
 
  /*
   * Determina si la ficha respeta IsSameLine.
@@ -888,10 +731,128 @@ export default function DynamicTab({
     selectedRecord: Record<string, unknown>,
     recordPage: number
   ) {
+    selectRecord(
+      selectedRecord,
+      recordPage
+    );
 
-    setRecord(selectedRecord);
-    setPage(recordPage);
     setViewMode("form");
+  }
+
+
+    function handleListEditRecord(
+    selectedRecord: Record<string, unknown>,
+    recordPage: number
+  ) {
+    selectRecord(
+      selectedRecord,
+      recordPage
+    );
+
+    setOriginalRecord({
+      ...selectedRecord,
+    });
+
+    setSaveError(null);
+    setSaveMessage(null);
+
+    setViewMode("form");
+    setIsEditing(true);
+  }
+
+  
+
+  async function handleListDeleteRecord(
+    selectedRecord: Record<string, unknown>
+  ) {
+    if (!tab.data_endpoint) {
+      return;
+    }
+
+    if (
+      !tab.pk_columns ||
+      tab.pk_columns.length === 0
+    ) {
+      setSaveError(
+        "No fue posible determinar la clave primaria del registro"
+      );
+      return;
+    }
+
+    const recordKeyValues:
+      Array<string | number> = [];
+
+    for (const columnName of tab.pk_columns) {
+      const value =
+        selectedRecord[
+          columnName.toLowerCase()
+        ];
+
+      if (
+        typeof value !== "string" &&
+        typeof value !== "number"
+      ) {
+        setSaveError(
+          "No fue posible determinar la clave primaria del registro"
+        );
+        return;
+      }
+
+      recordKeyValues.push(value);
+    }
+
+    const confirmed =
+      window.confirm(
+        "¿Confirma eliminar este registro?\n\nEsta operación no puede deshacerse."
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+    setSaveMessage(null);
+
+    try {
+      await deleteRecord(
+        tab.data_endpoint,
+        recordKeyValues
+      );
+
+      setSaveMessage(
+        "Registro eliminado correctamente."
+      );
+
+      setRefreshToken(
+        (current) => current + 1
+      );
+    } catch (error) {
+      console.error(
+        `Error eliminando registro en ${tab.data_endpoint}`,
+        error
+      );
+
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "No fue posible eliminar el registro"
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+
+
+  function selectRecord(
+    selectedRecord: Record<string, unknown>,
+    recordPage: number
+  ) {
+    setRecord(selectedRecord);
+    recordRef.current = selectedRecord;
+
+    setPage(recordPage);
 
     onPageChange(
       tab.ad_tab_id,
@@ -2274,7 +2235,7 @@ export default function DynamicTab({
               <Button
                 onClick={() => setPage(1)}
                 disabled={
-                  viewMode === "grid" ||
+                  viewMode !== "form" ||
                   isNewRecord ||
                   isEditing ||
                   page === 1 ||
@@ -2295,7 +2256,7 @@ export default function DynamicTab({
                   )
                 }
                 disabled={
-                  viewMode === "grid" ||
+                  viewMode !== "form" ||
                   isNewRecord ||
                   isEditing ||
                   page === 1
@@ -2312,7 +2273,7 @@ export default function DynamicTab({
                   )
                 }
                 disabled={
-                  viewMode === "grid" ||
+                  viewMode !== "form" ||
                   isNewRecord ||
                   isEditing ||
                   totalCount === 0 ||
@@ -2327,7 +2288,7 @@ export default function DynamicTab({
                   setPage(totalCount)
                 }
                 disabled={
-                  viewMode === "grid" ||
+                  viewMode !== "form" ||
                   isNewRecord ||
                   isEditing ||
                   totalCount === 0 ||
@@ -2340,7 +2301,7 @@ export default function DynamicTab({
               <Button
                 onClick={handleNewRecord}
                 disabled={
-                  viewMode === "grid" ||
+                  viewMode !== "form" ||
                   tab.isreadonly === true ||
                   tab.isinsertrecord === false ||
                   isNewRecord ||
@@ -2354,7 +2315,7 @@ export default function DynamicTab({
               <Button
                 onClick={handleEditRecord}
                 disabled={
-                  viewMode === "grid" ||
+                  viewMode !== "form" ||
                   tab.isreadonly === true ||
                   isNewRecord ||
                   isEditing ||
@@ -2369,7 +2330,7 @@ export default function DynamicTab({
               <Button
                 onClick={handleDeleteRecord}
                 disabled={
-                  viewMode === "grid" ||
+                  viewMode !== "form" ||
                   tab.isreadonly === true ||
                   isNewRecord ||
                   isEditing ||
@@ -2416,7 +2377,7 @@ export default function DynamicTab({
                   )
                 }
                 disabled={
-                  viewMode === "grid" ||
+                  viewMode !== "form" ||
                   saving
                 }
               >
@@ -2428,22 +2389,44 @@ export default function DynamicTab({
 
               <Button
                 onClick={() =>
-                  setViewMode(
-                    (current) =>
-                      current === "form"
-                        ? "grid"
-                        : "form"
-                  )
+                  setViewMode("form")
                 }
                 disabled={
                   isNewRecord ||
                   isEditing ||
-                  saving
+                  saving ||
+                  viewMode === "form"
                 }
               >
-                {viewMode === "form"
-                  ? "Grilla"
-                  : "Ficha"}
+                Ficha
+              </Button>
+
+              <Button
+                onClick={() =>
+                  setViewMode("grid")
+                }
+                disabled={
+                  isNewRecord ||
+                  isEditing ||
+                  saving ||
+                  viewMode === "grid"
+                }
+              >
+                Grilla
+              </Button>
+
+              <Button
+                onClick={() =>
+                  setViewMode("list")
+                }
+                disabled={
+                  isNewRecord ||
+                  isEditing ||
+                  saving ||
+                  viewMode === "list"
+                }
+              >
+                Lista
               </Button>
 
               {isNewRecord && (
@@ -2511,6 +2494,8 @@ export default function DynamicTab({
             <Typography variant="body2">
               {viewMode === "grid"
                 ? `Grilla — ${totalCount} registros`
+                : viewMode === "list"
+                ? `Lista — ${totalCount} registros`
                 : isNewRecord
                 ? "Nuevo registro"
                 : isEditing
@@ -2593,17 +2578,16 @@ export default function DynamicTab({
           </Box>
 
 
-          {/* FICHA / GRILLA */}
-          <Box
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: "auto",
-              paddingRight: 1,
-              paddingBottom: 2,
-            }}
-          >
-
+        {/* FICHA / GRILLA / LISTA */}
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            paddingRight: 1,
+            paddingBottom: 2,
+          }}
+        >
           {viewMode === "form" ? (
             <Box
               sx={{
@@ -2646,9 +2630,10 @@ export default function DynamicTab({
                           display: "grid",
                           gridTemplateColumns: {
                             xs: "1fr",
-                            md: row.fields.length === 2
-                              ? "repeat(2, minmax(0, 1fr))"
-                              : "1fr",
+                            md:
+                              row.fields.length === 2
+                                ? "repeat(2, minmax(0, 1fr))"
+                                : "1fr",
                           },
                           columnGap: 2,
                           alignItems: "start",
@@ -2674,24 +2659,27 @@ export default function DynamicTab({
                 </Box>
               ))}
             </Box>
+          ) : viewMode === "grid" ? (
+            <RecordGrid
+              tab={tab}
+              filter={buildRecordFilter()}
+              currentRecordPage={page}
+              onSelectRecord={handleGridSelectRecord}
+            />
           ) : (
-              <RecordGrid
-                tab={tab}
-                filter={
-                  buildRecordFilter()
-                }
-                currentRecordPage={page}
-                onSelectRecord={
-                  handleGridSelectRecord
-                }
-              />
-            )}
-
-          </Box>
+            <RecordList
+              tab={tab}
+              filter={buildRecordFilter()}
+              currentRecordPage={page}
+              onSelectRecord={handleGridSelectRecord}
+              onEditRecord={handleListEditRecord}
+              onDeleteRecord={handleListDeleteRecord}
+            />
+          )}
+        </Box>
 
         </>
       )}
-
 
       <RecordSearchDialog
         open={searchOpen}

@@ -154,6 +154,7 @@ export default function RecordSearchDialog({
           rawValue={value}
           editable={true}
           visualState="edit"
+          requiredEmpty={false}
           onChange={(newValue) => handleChange(field, newValue)}
         />
       );

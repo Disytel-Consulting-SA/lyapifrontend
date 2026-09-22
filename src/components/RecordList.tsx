@@ -1,0 +1,972 @@
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import type {
+  ChangeEvent,
+  MouseEvent,
+} from "react";
+
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  TablePagination,
+  TextField,
+  Typography,
+} from "@mui/material";
+
+import {
+  searchRecords,
+} from "../api/libertyaApi";
+
+import type {
+  WindowSchemaTab,
+} from "../types/metadata";
+
+import RecordDisplayValue from "./RecordDisplayValue";
+import LookupFilter from "./LookupFilter";
+
+
+interface Props {
+  tab: WindowSchemaTab;
+  filter?: string;
+  currentRecordPage: number;
+
+  onSelectRecord: (
+    record: Record<string, unknown>,
+    recordPage: number
+  ) => void;
+
+  onEditRecord: (
+    record: Record<string, unknown>,
+    recordPage: number
+  ) => void;
+
+  onDeleteRecord: (
+    record: Record<string, unknown>
+  ) => Promise<void>;
+}
+
+
+const TEXT_REFERENCE_IDS = new Set([
+  10, // String
+  14, // Text
+  34, // Memo
+]);
+
+
+function escapeFilterValue(
+  value: string
+) {
+  return value.replace(/'/g, "''");
+}
+
+
+export default function RecordList({
+  tab,
+  filter,
+  currentRecordPage,
+  onSelectRecord,
+  onEditRecord,
+  onDeleteRecord,
+}: Props) {
+
+  /*
+   * Campos base del modo Lista:
+   *
+   * - Value (Clave)
+   * - Name (Nombre)
+   * - IsSelectionColumn = Y
+   */
+  const listFields = useMemo(() => {
+    return [...tab.fields]
+      .filter((field) => {
+        if (field.isencrypted) {
+          return false;
+        }
+
+        const columnName =
+          field.columnname.toLowerCase();
+
+        return (
+          field.isselectioncolumn ||
+          columnName === "value" ||
+          columnName === "name"
+        );
+      })
+      .sort(
+        (a, b) =>
+          a.seqno - b.seqno
+      );
+  }, [tab.fields]);
+
+
+  /*
+   * Campos textuales que participan
+   * del multibuscador.
+   */
+  const textSearchFields = useMemo(() => {
+    return listFields.filter(
+      (field) =>
+        TEXT_REFERENCE_IDS.has(
+          field.ad_reference_id
+        )
+    );
+  }, [listFields]);
+
+
+  /*
+   * Campos de tipo List:
+   * se muestran como Select.
+   */
+  const listFilterFields = useMemo(() => {
+    return listFields.filter(
+      (field) =>
+        field.reference?.type === "list" &&
+        field.reference.values &&
+        field.reference.values.length > 0
+    );
+  }, [listFields]);
+
+
+  /*
+   * Campos Lookup / Search:
+   * se muestran mediante LookupFilter.
+   */
+  const lookupFilterFields = useMemo(() => {
+    return listFields.filter(
+      (field) =>
+        (
+          field.reference?.type === "lookup" ||
+          field.reference?.type === "search"
+        ) &&
+        Boolean(
+          field.reference?.endpoint
+        )
+    );
+  }, [listFields]);
+
+
+  const [records, setRecords] =
+    useState<Record<string, unknown>[]>([]);
+
+  const [totalCount, setTotalCount] =
+    useState(0);
+
+  const [rowsPerPage, setRowsPerPage] =
+    useState(25);
+
+  const [listPage, setListPage] =
+    useState(
+      Math.max(
+        0,
+        Math.floor(
+          (currentRecordPage - 1) / 25
+        )
+      )
+    );
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const [searchText, setSearchText] =
+    useState("");
+
+  const [
+    listFilterValues,
+    setListFilterValues,
+  ] = useState<
+    Record<string, string>
+  >({});
+
+  const [
+    lookupFilterValues,
+    setLookupFilterValues,
+  ] = useState<
+    Record<string, string>
+  >({});
+
+
+  /*
+   * Multi-search textual.
+   *
+   * Ejemplo:
+   *
+   * (
+   *   Value ILIKE '%acme%'
+   *   OR Name ILIKE '%acme%'
+   *   OR TaxID ILIKE '%acme%'
+   * )
+   */
+  const textFilter = useMemo(() => {
+    const value =
+      searchText.trim();
+
+    if (
+      value === "" ||
+      textSearchFields.length === 0
+    ) {
+      return "";
+    }
+
+    const escapedValue =
+      escapeFilterValue(value);
+
+    const conditions =
+      textSearchFields.map(
+        (field) =>
+          `${field.columnname} ILIKE '%${escapedValue}%'`
+      );
+
+    return `(${conditions.join(" OR ")})`;
+  }, [
+    searchText,
+    textSearchFields,
+  ]);
+
+
+  /*
+   * Filtros correspondientes a referencias List.
+   */
+  const listValueFilter = useMemo(() => {
+    const conditions: string[] = [];
+
+    for (
+      const field of listFilterFields
+    ) {
+      const value =
+        listFilterValues[
+          field.columnname
+        ];
+
+      if (
+        value === undefined ||
+        value === ""
+      ) {
+        continue;
+      }
+
+      const escapedValue =
+        escapeFilterValue(value);
+
+      conditions.push(
+        `${field.columnname} = '${escapedValue}'`
+      );
+    }
+
+    return conditions.join(" AND ");
+  }, [
+    listFilterFields,
+    listFilterValues,
+  ]);
+
+
+  /*
+   * Filtros correspondientes a
+   * Lookup / Search.
+   */
+  const lookupValueFilter =
+    useMemo(() => {
+      const conditions: string[] = [];
+
+      for (
+        const field of lookupFilterFields
+      ) {
+        const value =
+          lookupFilterValues[
+            field.columnname
+          ];
+
+        if (
+          value === undefined ||
+          value === ""
+        ) {
+          continue;
+        }
+
+        const escapedValue =
+          escapeFilterValue(value);
+
+        conditions.push(
+          `${field.columnname} = '${escapedValue}'`
+        );
+      }
+
+      return conditions.join(" AND ");
+    }, [
+      lookupFilterFields,
+      lookupFilterValues,
+    ]);
+
+
+  /*
+   * Filtro final enviado al REST API.
+   */
+  const effectiveFilter = useMemo(() => {
+    const filters = [
+      filter?.trim(),
+      textFilter,
+      listValueFilter,
+      lookupValueFilter,
+    ].filter(
+      (item): item is string =>
+        Boolean(item)
+    );
+
+    return filters.join(" AND ");
+  }, [
+    filter,
+    textFilter,
+    listValueFilter,
+    lookupValueFilter,
+  ]);
+
+
+  /*
+   * Mantener sincronizada la página.
+   */
+  useEffect(() => {
+    const newPage =
+      Math.max(
+        0,
+        Math.floor(
+          (currentRecordPage - 1) /
+            rowsPerPage
+        )
+      );
+
+    setListPage(newPage);
+  }, [
+    currentRecordPage,
+    rowsPerPage,
+  ]);
+
+
+  /*
+   * Recuperación server-side.
+   */
+  useEffect(() => {
+    if (!tab.data_endpoint) {
+      setRecords([]);
+      setTotalCount(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadRecords() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const result =
+          await searchRecords(
+            tab.data_endpoint!,
+            effectiveFilter,
+            rowsPerPage,
+            listPage + 1
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        setRecords(
+          result.records
+        );
+
+        setTotalCount(
+          result.totalCount
+        );
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+
+        console.error(
+          "Error cargando registros para modo lista",
+          err
+        );
+
+        setRecords([]);
+        setTotalCount(0);
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "No fue posible recuperar los registros"
+        );
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadRecords();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    tab.data_endpoint,
+    effectiveFilter,
+    rowsPerPage,
+    listPage,
+  ]);
+
+
+  function getRecordPage(
+    rowIndex: number
+  ) {
+    return (
+      listPage *
+        rowsPerPage +
+      rowIndex +
+      1
+    );
+  }
+
+
+  function handleSelectRecord(
+    record: Record<string, unknown>,
+    rowIndex: number
+  ) {
+    onSelectRecord(
+      record,
+      getRecordPage(rowIndex)
+    );
+  }
+
+
+  function handleEditRecord(
+    event: MouseEvent,
+    record: Record<string, unknown>,
+    rowIndex: number
+  ) {
+    event.stopPropagation();
+
+    onEditRecord(
+      record,
+      getRecordPage(rowIndex)
+    );
+  }
+
+
+  function handleDeleteRecord(
+    event: MouseEvent,
+    record: Record<string, unknown>
+  ) {
+    event.stopPropagation();
+
+    void onDeleteRecord(record);
+  }
+
+
+  function handleSearchChange(
+    event: ChangeEvent<HTMLInputElement>
+  ) {
+    setSearchText(
+      event.target.value
+    );
+
+    setListPage(0);
+  }
+
+
+  function handleListFilterChange(
+    columnName: string,
+    value: string
+  ) {
+    setListFilterValues(
+      (current) => ({
+        ...current,
+        [columnName]: value,
+      })
+    );
+
+    setListPage(0);
+  }
+
+
+  function handleLookupFilterChange(
+    columnName: string,
+    value: string
+  ) {
+    setLookupFilterValues(
+      (current) => ({
+        ...current,
+        [columnName]: value,
+      })
+    );
+
+    setListPage(0);
+  }
+
+
+  function handlePageChange(
+    _event: unknown,
+    newPage: number
+  ) {
+    setListPage(newPage);
+  }
+
+
+  function handleRowsPerPageChange(
+    event: ChangeEvent<HTMLInputElement>
+  ) {
+    setRowsPerPage(
+      parseInt(
+        event.target.value,
+        10
+      )
+    );
+
+    setListPage(0);
+  }
+
+
+  /*
+   * No existen campos configurados
+   * para el modo Lista.
+   */
+  if (listFields.length === 0) {
+    return (
+      <Alert severity="info">
+        La pestaña no posee campos
+        disponibles para el modo lista.
+      </Alert>
+    );
+  }
+
+
+  /*
+   * Layout desktop.
+   *
+   * Se agrega una columna final
+   * para las acciones.
+   */
+  const desktopGridTemplate =
+    `${listFields
+      .map(
+        () =>
+          "minmax(120px, 1fr)"
+      )
+      .join(" ")} minmax(150px, auto)`;
+
+
+  return (
+    <Box>
+
+      {/* ============================
+          FILTROS
+          ============================ */}
+
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 2,
+          mb: 2,
+          alignItems: "center",
+        }}
+      >
+
+        {/* Multi-search textual */}
+
+        {textSearchFields.length > 0 && (
+          <TextField
+            size="small"
+            value={searchText}
+            onChange={
+              handleSearchChange
+            }
+            placeholder={`Buscar por ${textSearchFields
+              .map(
+                (field) =>
+                  field.name
+              )
+              .join(", ")}`}
+            sx={{
+              flex: "1 1 400px",
+              minWidth: 250,
+            }}
+          />
+        )}
+
+
+        {/* Referencias List */}
+
+        {listFilterFields.map(
+          (field) => {
+            const value =
+              listFilterValues[
+                field.columnname
+              ] ?? "";
+
+            return (
+              <FormControl
+                key={
+                  field.ad_field_id
+                }
+                size="small"
+                sx={{
+                  flex: "0 1 220px",
+                  minWidth: 180,
+                }}
+              >
+                <InputLabel>
+                  {field.name}
+                </InputLabel>
+
+                <Select
+                  value={value}
+                  label={field.name}
+                  onChange={(event) =>
+                    handleListFilterChange(
+                      field.columnname,
+                      String(
+                        event.target.value
+                      )
+                    )
+                  }
+                >
+                  <MenuItem value="">
+                    <em>Todos</em>
+                  </MenuItem>
+
+                  {field.reference
+                    ?.values
+                    ?.map(
+                      (option) => (
+                        <MenuItem
+                          key={
+                            option.value
+                          }
+                          value={
+                            option.value
+                          }
+                        >
+                          {
+                            option.name
+                          }
+                        </MenuItem>
+                      )
+                    )}
+                </Select>
+              </FormControl>
+            );
+          }
+        )}
+
+
+        {/* Lookup / Search */}
+
+        {lookupFilterFields.map(
+          (field) => (
+            <Box
+              key={
+                field.ad_field_id
+              }
+              sx={{
+                flex: "0 1 280px",
+                minWidth: 220,
+              }}
+            >
+              <LookupFilter
+                field={field}
+                value={
+                  lookupFilterValues[
+                    field.columnname
+                  ] ?? ""
+                }
+                onChange={(value) =>
+                  handleLookupFilterChange(
+                    field.columnname,
+                    value
+                  )
+                }
+              />
+            </Box>
+          )
+        )}
+
+      </Box>
+
+
+      {/* ============================
+          ERROR
+          ============================ */}
+
+      {error && (
+        <Alert
+          severity="error"
+          sx={{ mb: 2 }}
+        >
+          {error}
+        </Alert>
+      )}
+
+
+      {/* ============================
+          ENCABEZADO DESKTOP
+          ============================ */}
+
+      <Box
+        sx={{
+          display: {
+            xs: "none",
+            md: "grid",
+          },
+
+          gridTemplateColumns:
+            desktopGridTemplate,
+
+          gap: 2,
+          px: 2,
+          pb: 1,
+        }}
+      >
+        {listFields.map(
+          (field) => (
+            <Typography
+              key={
+                field.ad_field_id
+              }
+              variant="subtitle2"
+              sx={{
+                fontWeight: 600,
+              }}
+            >
+              {field.name}
+            </Typography>
+          )
+        )}
+
+        <Typography
+          variant="subtitle2"
+          sx={{
+            fontWeight: 600,
+            textAlign: "right",
+          }}
+        >
+          Acciones
+        </Typography>
+      </Box>
+
+
+      {/* ============================
+          LOADING
+          ============================ */}
+
+      {loading && (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent:
+              "center",
+            py: 4,
+          }}
+        >
+          <CircularProgress
+            size={28}
+          />
+        </Box>
+      )}
+
+
+      {/* ============================
+          SIN RESULTADOS
+          ============================ */}
+
+      {!loading &&
+        records.length === 0 && (
+          <Alert severity="info">
+            No se encontraron registros.
+          </Alert>
+        )}
+
+
+      {/* ============================
+          REGISTROS
+          ============================ */}
+
+      {!loading &&
+        records.map(
+          (
+            record,
+            rowIndex
+          ) => (
+            <Paper
+              key={`${listPage}-${rowIndex}`}
+              variant="outlined"
+              onClick={() =>
+                handleSelectRecord(
+                  record,
+                  rowIndex
+                )
+              }
+              sx={{
+                mb: 1,
+                px: 2,
+                py: 1.5,
+
+                cursor: "pointer",
+
+                display: "grid",
+
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: desktopGridTemplate,
+                },
+
+                gap: {
+                  xs: 1,
+                  md: 2,
+                },
+
+                alignItems:
+                  "center",
+
+                transition:
+                  "background-color 0.15s ease",
+
+                "&:hover": {
+                  backgroundColor:
+                    "action.hover",
+                },
+              }}
+            >
+
+              {/* Valores */}
+
+              {listFields.map(
+                (field) => (
+                  <Box
+                    key={
+                      field.ad_field_id
+                    }
+                    sx={{
+                      minWidth: 0,
+                    }}
+                  >
+                    <RecordDisplayValue
+                      record={
+                        record
+                      }
+                      field={
+                        field
+                      }
+                    />
+                  </Box>
+                )
+              )}
+
+
+              {/* Acciones */}
+
+              <Box
+                sx={{
+                  display: "flex",
+
+                  justifyContent: {
+                    xs: "flex-start",
+                    md: "flex-end",
+                  },
+
+                  gap: 1,
+
+                  mt: {
+                    xs: 1,
+                    md: 0,
+                  },
+                }}
+              >
+                <Button
+                  size="small"
+                  variant="text"
+                  disabled={
+                    tab.isreadonly ===
+                    true
+                  }
+                  onClick={(
+                    event
+                  ) =>
+                    handleEditRecord(
+                      event,
+                      record,
+                      rowIndex
+                    )
+                  }
+                >
+                  Editar
+                </Button>
+
+                <Button
+                  size="small"
+                  variant="text"
+                  color="error"
+                  disabled={
+                    tab.isreadonly ===
+                    true
+                  }
+                  onClick={(
+                    event
+                  ) =>
+                    handleDeleteRecord(
+                      event,
+                      record
+                    )
+                  }
+                >
+                  Eliminar
+                </Button>
+              </Box>
+
+            </Paper>
+          )
+        )}
+
+
+      {/* ============================
+          PAGINACIÓN
+          ============================ */}
+
+      <TablePagination
+        component="div"
+        count={totalCount}
+        page={listPage}
+        rowsPerPage={
+          rowsPerPage
+        }
+        onPageChange={
+          handlePageChange
+        }
+        onRowsPerPageChange={
+          handleRowsPerPageChange
+        }
+        rowsPerPageOptions={[
+          10,
+          25,
+          50,
+        ]}
+        labelRowsPerPage={
+          "Registros por página:"
+        }
+      />
+
+    </Box>
+  );
+}

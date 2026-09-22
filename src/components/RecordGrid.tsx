@@ -15,14 +15,14 @@ import {
 } from "@mui/material";
 
 import {
-  getLookupValues,
   searchRecords,
 } from "../api/libertyaApi";
 
 import type {
-  WindowSchemaField,
   WindowSchemaTab,
 } from "../types/metadata";
+
+import RecordDisplayValue from "./RecordDisplayValue";
 
 
 interface Props {
@@ -37,119 +37,6 @@ interface Props {
 }
 
 
-/*
- * Cache global para valores referenciados.
- *
- * La clave combina endpoint + valor.
- *
- * Ejemplo:
- *
- * /v1.0/columns/123/lookup|1010053
- *      ->
- * Organización Central
- */
-const referenceValueCache = new Map<string, string>();
-
-
-/*
- * También cacheamos requests en curso.
- *
- * Esto evita que 20 celdas con el mismo ID lancen
- * simultáneamente 20 requests antes de que el primero
- * alcance a completar el cache.
- */
-const pendingReferenceRequests = new Map<string, Promise<string>>();
-
-
-interface GridReferenceValueProps {
-  field: WindowSchemaField;
-  value: string;
-}
-
-
-function GridReferenceValue({
-  field,
-  value,
-}: GridReferenceValueProps) {
-
-  const endpoint = field.reference?.endpoint;
-  const cacheKey = endpoint ? `${endpoint}|${value}` : "";
-
-  const [displayValue, setDisplayValue] = useState(
-    cacheKey && referenceValueCache.has(cacheKey)
-      ? referenceValueCache.get(cacheKey)!
-      : value
-  );
-
-
-  useEffect(() => {
-    if (!endpoint || value === "") {
-      setDisplayValue(value);
-      return;
-    }
-
-    const key = `${endpoint}|${value}`;
-    const cachedValue = referenceValueCache.get(key);
-
-    if (cachedValue !== undefined) {
-      setDisplayValue(cachedValue);
-      return;
-    }
-
-    let cancelled = false;
-
-    let request = pendingReferenceRequests.get(key);
-
-    if (!request) {
-      request = getLookupValues(endpoint, 1, 1, undefined, value)
-        .then((values) => {
-          const resolvedValue = values.length > 0
-            ? values[0].name
-            : value;
-
-          referenceValueCache.set(key, resolvedValue);
-
-          return resolvedValue;
-        })
-        .catch((error) => {
-          console.error(
-            `Error resolviendo valor ${value} para ${field.columnname}`,
-            error
-          );
-
-          /*
-           * Si no podemos resolverlo, mantenemos el ID.
-           */
-          referenceValueCache.set(key, value);
-
-          return value;
-        })
-        .finally(() => {
-          pendingReferenceRequests.delete(key);
-        });
-
-      pendingReferenceRequests.set(key, request);
-    }
-
-    request.then((resolvedValue) => {
-      if (!cancelled)
-        setDisplayValue(resolvedValue);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    endpoint,
-    value,
-    field.columnname,
-  ]);
-
-
-  return <>{displayValue}</>;
-}
-
-
 export default function RecordGrid({
   tab,
   filter,
@@ -157,18 +44,33 @@ export default function RecordGrid({
   onSelectRecord,
 }: Props) {
 
-  const [records, setRecords] = useState<Record<string, unknown>[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [records, setRecords] =
+    useState<Record<string, unknown>[]>([]);
 
-  const [gridPage, setGridPage] = useState(
-    Math.floor(Math.max(currentRecordPage - 1, 0) / 25)
-  );
+  const [totalCount, setTotalCount] =
+    useState(0);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [rowsPerPage, setRowsPerPage] =
+    useState(25);
+
+  const [gridPage, setGridPage] =
+    useState(
+      Math.floor(
+        Math.max(currentRecordPage - 1, 0) / 25
+      )
+    );
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState<string | null>(null);
 
 
+  /*
+   * Campos configurados para mostrarse
+   * en la grilla.
+   */
   const gridFields = useMemo(() => {
     return tab.fields
       .filter(
@@ -177,17 +79,34 @@ export default function RecordGrid({
           field.isdisplayed &&
           field.isdisplayedingrid
       )
-      .sort((a, b) => a.seqno - b.seqno);
+      .sort(
+        (a, b) =>
+          a.seqno - b.seqno
+      );
   }, [tab.fields]);
 
 
+  /*
+   * Al cambiar de pestaña, recuperar la página
+   * correspondiente al registro actualmente
+   * seleccionado.
+   */
   useEffect(() => {
     setGridPage(
-      Math.floor(Math.max(currentRecordPage - 1, 0) / rowsPerPage)
+      Math.floor(
+        Math.max(
+          currentRecordPage - 1,
+          0
+        ) / rowsPerPage
+      )
     );
   }, [tab.ad_tab_id]);
 
 
+  /*
+   * Recuperar los registros correspondientes
+   * a la página actual.
+   */
   useEffect(() => {
     if (!tab.data_endpoint) {
       setRecords([]);
@@ -210,8 +129,13 @@ export default function RecordGrid({
         if (cancelled)
           return;
 
-        setRecords(result.records);
-        setTotalCount(result.totalCount);
+        setRecords(
+          result.records
+        );
+
+        setTotalCount(
+          result.totalCount
+        );
       })
       .catch((err) => {
         console.error(
@@ -222,7 +146,10 @@ export default function RecordGrid({
         if (!cancelled) {
           setRecords([]);
           setTotalCount(0);
-          setError("No fue posible recuperar los registros.");
+
+          setError(
+            "No fue posible recuperar los registros."
+          );
         }
       })
       .finally(() => {
@@ -242,72 +169,26 @@ export default function RecordGrid({
   ]);
 
 
-  function getRawValue(
-    record: Record<string, unknown>,
-    field: WindowSchemaField
-  ): unknown {
-    return record[field.columnname.toLowerCase()];
-  }
-
-
-  function renderValue(
-    record: Record<string, unknown>,
-    field: WindowSchemaField
-  ) {
-
-    const rawValue = getRawValue(record, field);
-
-    if (rawValue === undefined || rawValue === null)
-      return "";
-
-    const value = String(rawValue);
-    const type = field.reference?.type;
-
-
-    if (type === "boolean") {
-      if (value === "Y" || value === "true")
-        return "Sí";
-
-      if (value === "N" || value === "false")
-        return "No";
-
-      return value;
-    }
-
-
-    if (type === "list") {
-      const option = field.reference?.values?.find(
-        (item) => item.value === value
-      );
-
-      return option?.name ?? value;
-    }
-
-
-    if (
-      type === "lookup" ||
-      type === "search"
-    ) {
-      return (
-        <GridReferenceValue
-          field={field}
-          value={value}
-        />
-      );
-    }
-
-
-    return value;
-  }
-
-
+  /*
+   * Seleccionar un registro de la grilla.
+   *
+   * recordPage representa la posición absoluta
+   * del registro dentro del conjunto completo.
+   */
   function handleSelectRecord(
     record: Record<string, unknown>,
     rowIndex: number
   ) {
-    const recordPage = gridPage * rowsPerPage + rowIndex + 1;
 
-    onSelectRecord(record, recordPage);
+    const recordPage =
+      gridPage * rowsPerPage +
+      rowIndex +
+      1;
+
+    onSelectRecord(
+      record,
+      recordPage
+    );
   }
 
 
@@ -322,11 +203,22 @@ export default function RecordGrid({
   function handleChangeRowsPerPage(
     event: React.ChangeEvent<HTMLInputElement>
   ) {
-    setRowsPerPage(parseInt(event.target.value, 10));
+
+    setRowsPerPage(
+      parseInt(
+        event.target.value,
+        10
+      )
+    );
+
     setGridPage(0);
   }
 
 
+  /*
+   * La pestaña necesita un endpoint de datos
+   * para poder mostrar una grilla.
+   */
   if (!tab.data_endpoint) {
     return (
       <Alert severity="warning">
@@ -336,6 +228,10 @@ export default function RecordGrid({
   }
 
 
+  /*
+   * No existen campos configurados para
+   * mostrarse en grilla.
+   */
   if (gridFields.length === 0) {
     return (
       <Alert severity="info">
@@ -351,16 +247,20 @@ export default function RecordGrid({
       sx={{
         height: "100%",
         minHeight: 0,
+
         display: "flex",
         flexDirection: "column",
+
         overflow: "hidden",
       }}
     >
+
       {error && (
         <Alert severity="error">
           {error}
         </Alert>
       )}
+
 
       <TableContainer
         sx={{
@@ -369,6 +269,7 @@ export default function RecordGrid({
           overflow: "auto",
         }}
       >
+
         <Table
           size="small"
           stickyHeader
@@ -376,91 +277,184 @@ export default function RecordGrid({
             minWidth: "max-content",
           }}
         >
+
           <TableHead>
             <TableRow>
-              {gridFields.map((field) => (
-                <TableCell
-                  key={field.ad_field_id}
-                  sx={{
-                    whiteSpace: "nowrap",
-                    fontWeight: 600,
-                  }}
-                >
-                  {field.name}
-                </TableCell>
-              ))}
+
+              {gridFields.map(
+                (field) => (
+                  <TableCell
+                    key={
+                      field.ad_field_id
+                    }
+                    sx={{
+                      whiteSpace:
+                        "nowrap",
+
+                      fontWeight:
+                        600,
+                    }}
+                  >
+                    {field.name}
+                  </TableCell>
+                )
+              )}
+
             </TableRow>
           </TableHead>
 
+
           <TableBody>
+
             {loading && (
               <TableRow>
                 <TableCell
-                  colSpan={gridFields.length}
+                  colSpan={
+                    gridFields.length
+                  }
                   align="center"
-                  sx={{ py: 4 }}
+                  sx={{
+                    py: 4,
+                  }}
                 >
-                  <CircularProgress size={28} />
+                  <CircularProgress
+                    size={28}
+                  />
                 </TableCell>
               </TableRow>
             )}
 
-            {!loading && records.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={gridFields.length}
-                  align="center"
-                  sx={{ py: 4 }}
-                >
-                  No existen registros.
-                </TableCell>
-              </TableRow>
-            )}
 
-            {!loading && records.map((record, rowIndex) => (
-              <TableRow
-                key={rowIndex}
-                hover
-                onClick={() => handleSelectRecord(record, rowIndex)}
-                sx={{ cursor: "pointer" }}
-              >
-                {gridFields.map((field) => (
+            {!loading &&
+              records.length === 0 && (
+                <TableRow>
                   <TableCell
-                    key={field.ad_field_id}
+                    colSpan={
+                      gridFields.length
+                    }
+                    align="center"
                     sx={{
-                      whiteSpace: "nowrap",
+                      py: 4,
                     }}
                   >
-                    {renderValue(record, field)}
+                    No existen registros.
                   </TableCell>
-                ))}
-              </TableRow>
-            ))}
+                </TableRow>
+              )}
+
+
+            {!loading &&
+              records.map(
+                (
+                  record,
+                  rowIndex
+                ) => (
+
+                  <TableRow
+                    key={rowIndex}
+                    hover
+
+                    onClick={() =>
+                      handleSelectRecord(
+                        record,
+                        rowIndex
+                      )
+                    }
+
+                    sx={{
+                      cursor:
+                        "pointer",
+                    }}
+                  >
+
+                    {gridFields.map(
+                      (field) => (
+                        <TableCell
+                          key={
+                            field.ad_field_id
+                          }
+                          sx={{
+                            whiteSpace:
+                              "nowrap",
+                          }}
+                        >
+                          <RecordDisplayValue
+                            record={
+                              record
+                            }
+                            field={
+                              field
+                            }
+                          />
+                        </TableCell>
+                      )
+                    )}
+
+                  </TableRow>
+                )
+              )}
+
           </TableBody>
+
         </Table>
+
       </TableContainer>
+
 
       <Box
         sx={{
           flexShrink: 0,
+
           borderTop: 1,
-          borderColor: "divider",
+          borderColor:
+            "divider",
         }}
       >
+
         <TablePagination
           component="div"
-          count={totalCount}
-          page={gridPage}
-          rowsPerPage={rowsPerPage}
-          rowsPerPageOptions={[10, 25, 50]}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          labelRowsPerPage="Filas por página:"
-          labelDisplayedRows={({ from, to, count }) =>
+
+          count={
+            totalCount
+          }
+
+          page={
+            gridPage
+          }
+
+          rowsPerPage={
+            rowsPerPage
+          }
+
+          rowsPerPageOptions={[
+            10,
+            25,
+            50,
+          ]}
+
+          onPageChange={
+            handleChangePage
+          }
+
+          onRowsPerPageChange={
+            handleChangeRowsPerPage
+          }
+
+          labelRowsPerPage={
+            "Filas por página:"
+          }
+
+          labelDisplayedRows={({
+            from,
+            to,
+            count,
+          }) =>
             `${from}-${to} de ${count}`
           }
         />
+
       </Box>
+
     </Paper>
   );
 }
