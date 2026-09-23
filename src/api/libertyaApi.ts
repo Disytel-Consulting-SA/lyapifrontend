@@ -515,7 +515,8 @@ export async function searchRecords(
   dataEndpoint: string,
   filter: string,
   limit = 50,
-  page = 1
+  page = 1,
+  sort?: string
 ): Promise<RecordSearchResult> {
 
   const params = new URLSearchParams();
@@ -526,6 +527,16 @@ export async function searchRecords(
 
   if (filter.trim() !== "") {
     params.set("filter", filter);
+  }
+
+  if (
+    sort !== undefined &&
+    sort.trim() !== ""
+  ) {
+    params.set(
+      "sort",
+      sort.trim()
+    );
   }
 
   const response = await authenticatedFetch(
@@ -540,10 +551,13 @@ export async function searchRecords(
 
   const records = await response.json();
 
-  const totalCountHeader = response.headers.get("X-Total-Count");
-  const totalCount = totalCountHeader !== null
-    ? Number(totalCountHeader)
-    : records.length;
+  const totalCountHeader =
+    response.headers.get("X-Total-Count");
+
+  const totalCount =
+    totalCountHeader !== null
+      ? Number(totalCountHeader)
+      : records.length;
 
   return {
     records,

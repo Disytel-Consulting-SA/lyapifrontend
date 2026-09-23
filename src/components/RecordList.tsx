@@ -198,6 +198,8 @@ export default function RecordList({
     lookupFilterValues,
     page: listPage,
     rowsPerPage,
+    orderBy,
+    orderDirection,
   } = state;
 
 
@@ -221,6 +223,20 @@ export default function RecordList({
     setDebouncedSearchText,
   ] = useState(searchText);
 
+
+  const sort = useMemo(() => {
+    if (
+      !orderBy ||
+      !orderDirection
+    ) {
+      return undefined;
+    }
+
+    return `${orderBy} ${orderDirection}`;
+  }, [
+    orderBy,
+    orderDirection,
+  ]);
 
   /*
    * Debounce del multibuscador textual.
@@ -401,7 +417,8 @@ export default function RecordList({
             tab.data_endpoint!,
             effectiveFilter,
             rowsPerPage,
-            listPage + 1
+            listPage + 1,
+            sort
           );
 
         if (cancelled) {
@@ -450,6 +467,7 @@ export default function RecordList({
     effectiveFilter,
     rowsPerPage,
     listPage,
+    sort,
   ]);
 
 
@@ -462,6 +480,27 @@ export default function RecordList({
       rowIndex +
       1
     );
+  }
+
+
+  function handleSort(
+    columnName: string
+  ) {
+    const sameColumn =
+      state.orderBy === columnName;
+
+    const newDirection =
+      sameColumn &&
+      state.orderDirection === "ASC"
+        ? "DESC"
+        : "ASC";
+
+    onStateChange({
+      ...state,
+      orderBy: columnName,
+      orderDirection: newDirection,
+      page: 0,
+    });
   }
 
 
@@ -776,19 +815,41 @@ export default function RecordList({
         }}
       >
         {listFields.map(
-          (field) => (
-            <Typography
-              key={
-                field.ad_field_id
-              }
-              variant="subtitle2"
-              sx={{
-                fontWeight: 600,
-              }}
-            >
-              {field.name}
-            </Typography>
-          )
+          (field) => {
+            const active =
+              orderBy === field.columnname;
+
+            return (
+              <Typography
+                key={field.ad_field_id}
+                variant="subtitle2"
+                onClick={() =>
+                  handleSort(
+                    field.columnname
+                  )
+                }
+                sx={{
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  userSelect: "none",
+
+                  "&:hover": {
+                    textDecoration:
+                      "underline",
+                  },
+                }}
+              >
+                {field.name}
+
+                {active &&
+                  (
+                    orderDirection === "ASC"
+                      ? " ↑"
+                      : " ↓"
+                  )}
+              </Typography>
+            );
+          }
         )}
 
         <Typography
