@@ -21,20 +21,16 @@ import type {
 
 import SearchField from "./SearchField";
 
+import {
+  getSearchFields,
+} from "../utils/searchFields";
+
 interface Props {
   open: boolean;
   tab: WindowSchemaTab;
   onClose: () => void;
   onSearch: (criteria: Record<string, string>) => void;
 }
-
-
-const STANDARD_SEARCH_COLUMNS = new Set([
-  "Value",
-  "Name",
-  "DocumentNo",
-  "Description",
-]);
 
 
 export default function RecordSearchDialog({
@@ -47,16 +43,10 @@ export default function RecordSearchDialog({
   const [criteria, setCriteria] = useState<Record<string, string>>({});
 
 
-  const searchFields = useMemo(() => {
-    return tab.fields.filter(
-      (field) =>
-        !field.iskey &&
-        (
-          STANDARD_SEARCH_COLUMNS.has(field.columnname) ||
-          field.isselectioncolumn
-        )
-    );
-  }, [tab.fields]);
+const searchFields = useMemo(
+  () => getSearchFields(tab.fields),
+  [tab.fields]
+);
 
 
   function handleChange(field: WindowSchemaField, value: string) {

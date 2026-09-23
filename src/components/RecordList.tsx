@@ -35,6 +35,10 @@ import type {
 import RecordDisplayValue from "./RecordDisplayValue";
 import LookupFilter from "./LookupFilter";
 
+import {
+  getSearchFields,
+} from "../utils/searchFields";
+
 
 interface Props {
   tab: WindowSchemaTab;
@@ -87,41 +91,38 @@ export default function RecordList({
    * - Name (Nombre)
    * - IsSelectionColumn = Y
    */
-  const listFields = useMemo(() => {
-    return [...tab.fields]
-      .filter((field) => {
-        if (field.isencrypted) {
-          return false;
-        }
+const listFields = useMemo(() => {
+  return getSearchFields(tab.fields)
+    .filter((field) => !field.isencrypted)
+    .sort((a, b) => a.seqno - b.seqno);
+}, [tab.fields]);
 
-        const columnName =
-          field.columnname.toLowerCase();
 
-        return (
-          field.isselectioncolumn ||
-          columnName === "value" ||
-          columnName === "name"
-        );
-      })
-      .sort(
-        (a, b) =>
-          a.seqno - b.seqno
-      );
-  }, [tab.fields]);
+const searchFields = useMemo(() => {
+  return getSearchFields(tab.fields)
+    .filter(
+      (field) =>
+        !field.isencrypted
+    )
+    .sort(
+      (a, b) =>
+        a.seqno - b.seqno
+    );
+}, [tab.fields]);
 
 
   /*
    * Campos textuales que participan
    * del multibuscador.
    */
-  const textSearchFields = useMemo(() => {
-    return listFields.filter(
+const textSearchFields = useMemo(() => {
+  return searchFields.filter(
       (field) =>
         TEXT_REFERENCE_IDS.has(
           field.ad_reference_id
         )
     );
-  }, [listFields]);
+  }, [searchFields]);
 
 
   /*
@@ -129,13 +130,13 @@ export default function RecordList({
    * se muestran como Select.
    */
   const listFilterFields = useMemo(() => {
-    return listFields.filter(
+    return searchFields.filter(
       (field) =>
         field.reference?.type === "list" &&
         field.reference.values &&
         field.reference.values.length > 0
     );
-  }, [listFields]);
+  }, [searchFields]);
 
 
   /*
@@ -143,7 +144,7 @@ export default function RecordList({
    * se muestran mediante LookupFilter.
    */
   const lookupFilterFields = useMemo(() => {
-    return listFields.filter(
+    return searchFields.filter(
       (field) =>
         (
           field.reference?.type === "lookup" ||
@@ -153,7 +154,7 @@ export default function RecordList({
           field.reference?.endpoint
         )
     );
-  }, [listFields]);
+  }, [searchFields]);
 
 
   const [records, setRecords] =
@@ -184,6 +185,9 @@ export default function RecordList({
   const [searchText, setSearchText] =
     useState("");
 
+  const [debouncedSearchText, setDebouncedSearchText] =
+    useState("");
+
   const [
     listFilterValues,
     setListFilterValues,
@@ -211,30 +215,22 @@ export default function RecordList({
    * )
    */
   const textFilter = useMemo(() => {
-    const value =
-      searchText.trim();
+    const value = debouncedSearchText.trim();
 
-    if (
-      value === "" ||
-      textSearchFields.length === 0
-    ) {
+    if (!value || textSearchFields.length === 0) {
       return "";
     }
 
     const escapedValue =
-      escapeFilterValue(value);
+      value.replace(/'/g, "''");
 
-    const conditions =
-      textSearchFields.map(
-        (field) =>
-          `${field.columnname} ILIKE '%${escapedValue}%'`
-      );
+    const conditions = textSearchFields.map(
+      (field) =>
+        `${field.columnname} ILIKE '%${escapedValue}%'`
+    );
 
     return `(${conditions.join(" OR ")})`;
-  }, [
-    searchText,
-    textSearchFields,
-  ]);
+  }, [debouncedSearchText, textSearchFields]);
 
 
   /*
@@ -332,6 +328,17 @@ export default function RecordList({
     listValueFilter,
     lookupValueFilter,
   ]);
+
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearchText(searchText);
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [searchText]);
 
 
   /*

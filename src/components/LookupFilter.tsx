@@ -29,7 +29,7 @@ interface Props {
 export default function LookupFilter({
   field,
   value,
-  contextValues = {},
+  contextValues,
   onChange,
 }: Props) {
   const [options, setOptions] =
@@ -41,6 +41,17 @@ export default function LookupFilter({
   const [inputValue, setInputValue] =
     useState("");
 
+  /*
+   * Valor que el usuario está escribiendo.
+   * Todavía no dispara una búsqueda.
+   */
+  const [pendingSearchValue, setPendingSearchValue] =
+    useState("");
+
+  /*
+   * Valor efectivamente utilizado para consultar
+   * el lookup remoto, luego del debounce.
+   */
   const [searchValue, setSearchValue] =
     useState("");
 
@@ -49,6 +60,20 @@ export default function LookupFilter({
 
   const endpoint =
     field.reference?.endpoint;
+
+
+  /*
+   * Debounce de la búsqueda remota.
+   */
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setSearchValue(pendingSearchValue);
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [pendingSearchValue]);
 
 
   /*
@@ -184,10 +209,11 @@ export default function LookupFilter({
         setInputValue(newInputValue);
 
         if (reason === "input") {
-          setSearchValue(newInputValue);
+          setPendingSearchValue(newInputValue);
         }
 
         if (reason === "clear") {
+          setPendingSearchValue("");
           setSearchValue("");
         }
       }}
@@ -201,6 +227,7 @@ export default function LookupFilter({
             : ""
         );
 
+        setPendingSearchValue("");
         setSearchValue("");
 
         onChange(
