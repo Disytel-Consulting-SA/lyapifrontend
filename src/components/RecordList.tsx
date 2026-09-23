@@ -953,8 +953,14 @@ export default function RecordList({
               }
               sx={{
                 mb: 1,
-                px: 2,
-                py: 1.5,
+                px: {
+                  xs: 1.5,
+                  md: 2,
+                },
+                py: {
+                  xs: 1,
+                  md: 1.5,
+                },
 
                 cursor: "pointer",
 
@@ -966,7 +972,7 @@ export default function RecordList({
                 },
 
                 gap: {
-                  xs: 1,
+                  xs: 0.75,
                   md: 2,
                 },
 
@@ -984,27 +990,63 @@ export default function RecordList({
             >
 
               {/* Valores */}
-
               {listFields.map(
-                (field) => (
-                  <Box
-                    key={
-                      field.ad_field_id
-                    }
-                    sx={{
-                      minWidth: 0,
-                    }}
-                  >
-                    <RecordDisplayValue
-                      record={
-                        record
-                      }
-                      field={
-                        field
-                      }
-                    />
-                  </Box>
-                )
+                (field) => {
+                  const value =
+                    record[
+                      field.columnname.toLowerCase()
+                    ];
+
+                  const empty =
+                    value === null ||
+                    value === undefined ||
+                    value === "";
+
+                  return (
+                    <Box
+                      key={field.ad_field_id}
+                      sx={{
+                        minWidth: 0,
+
+                        /*
+                        * En modo card no tiene sentido
+                        * ocupar espacio con campos vacíos.
+                        *
+                        * En desktop se conserva la celda
+                        * para mantener alineadas las columnas.
+                        */
+                        display: {
+                          xs: empty
+                            ? "none"
+                            : "block",
+                          md: "block",
+                        },
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: {
+                            xs: "block",
+                            md: "none",
+                          },
+                          color:
+                            "text.secondary",
+                          fontSize: "0.7rem",
+                          lineHeight: 1.2,
+                          mb: 0.25,
+                        }}
+                      >
+                        {field.name}
+                      </Typography>
+
+                      <RecordDisplayValue
+                        record={record}
+                        field={field}
+                      />
+                    </Box>
+                  );
+                }
               )}
 
 
@@ -1022,9 +1064,19 @@ export default function RecordList({
                   gap: 1,
 
                   mt: {
-                    xs: 1,
+                    xs: 0.25,
                     md: 0,
                   },
+
+                  "& .MuiButton-root": {
+                    minWidth: "auto",
+
+                    px: {
+                      xs: 0.5,
+                      md: 1,
+                    },
+                  },
+
                 }}
               >
                 <Button

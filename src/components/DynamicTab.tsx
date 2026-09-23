@@ -2220,324 +2220,385 @@ export default function DynamicTab({
           marginTop: 1,
           marginBottom: 2,
 
-          width: "100%",
-          maxWidth: "100%",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 0.75,
+          alignItems: "center",
 
-          overflowX: "auto",
-          overflowY: "hidden",
-
-          paddingBottom: 0.5,
-
-          WebkitOverflowScrolling:
-            "touch",
+          "& .MuiButton-root": {
+            whiteSpace: "nowrap",
+          },
         }}
       >
+
+        {/* Navegación */}
         <ButtonGroup
           variant="outlined"
           size="small"
-          sx={{
-            width: "max-content",
-            flexWrap: "nowrap",
-
-            "& .MuiButton-root": {
-              whiteSpace: "nowrap",
-            },
-          }}
         >
+          <Button
+            onClick={() => setPage(1)}
+            disabled={
+              viewMode !== "form" ||
+              isNewRecord ||
+              isEditing ||
+              page === 1 ||
+              totalCount === 0
+            }
+          >
+            |← Primero
+          </Button>
 
-              <Button
-                onClick={() => setPage(1)}
-                disabled={
-                  viewMode !== "form" ||
-                  isNewRecord ||
-                  isEditing ||
-                  page === 1 ||
-                  totalCount === 0
-                }
-              >
-                |← Primero
-              </Button>
-
-              <Button
-                onClick={() =>
-                  setPage(
-                    (current) =>
-                      Math.max(
-                        1,
-                        current - 1
-                      )
+          <Button
+            onClick={() =>
+              setPage(
+                (current) =>
+                  Math.max(
+                    1,
+                    current - 1
                   )
-                }
-                disabled={
-                  viewMode !== "form" ||
-                  isNewRecord ||
-                  isEditing ||
-                  page === 1
-                }
-              >
-                ← Anterior
-              </Button>
+              )
+            }
+            disabled={
+              viewMode !== "form" ||
+              isNewRecord ||
+              isEditing ||
+              page === 1
+            }
+          >
+            ← Anterior
+          </Button>
 
-              <Button
-                onClick={() =>
-                  setPage(
-                    (current) =>
-                      current + 1
-                  )
-                }
-                disabled={
-                  viewMode !== "form" ||
-                  isNewRecord ||
-                  isEditing ||
-                  totalCount === 0 ||
-                  page >= totalCount
-                }
-              >
-                Siguiente →
-              </Button>
+          <Button
+            onClick={() =>
+              setPage(
+                (current) =>
+                  current + 1
+              )
+            }
+            disabled={
+              viewMode !== "form" ||
+              isNewRecord ||
+              isEditing ||
+              totalCount === 0 ||
+              page >= totalCount
+            }
+          >
+            Siguiente →
+          </Button>
 
-              <Button
-                onClick={() =>
-                  setPage(totalCount)
-                }
-                disabled={
-                  viewMode !== "form" ||
-                  isNewRecord ||
-                  isEditing ||
-                  totalCount === 0 ||
-                  page >= totalCount
-                }
-              >
-                Último →|
-              </Button>
-
-              <Button
-                onClick={handleNewRecord}
-                disabled={
-                  viewMode !== "form" ||
-                  tab.isreadonly === true ||
-                  tab.isinsertrecord === false ||
-                  isNewRecord ||
-                  isEditing ||
-                  saving
-                }
-              >
-                Nuevo
-              </Button>
-
-              <Button
-                onClick={handleEditRecord}
-                disabled={
-                  viewMode !== "form" ||
-                  tab.isreadonly === true ||
-                  isNewRecord ||
-                  isEditing ||
-                  saving ||
-                  getRecordKeyValues() ===
-                    undefined
-                }
-              >
-                Editar
-              </Button>
-
-              <Button
-                onClick={handleDeleteRecord}
-                disabled={
-                  viewMode !== "form" ||
-                  tab.isreadonly === true ||
-                  isNewRecord ||
-                  isEditing ||
-                  saving ||
-                  getRecordKeyValues() ===
-                    undefined
-                }
-              >
-                Eliminar
-              </Button>
-
-              <Button
-                onClick={() =>
-                  setSearchOpen(true)
-                }
-                disabled={
-                  isNewRecord ||
-                  isEditing ||
-                  saving
-                }
-              >
-                Buscar
-              </Button>
-
-              <Button
-                onClick={() => {
-                  setSearchFilter("");
-                  setPage(1);
-                }}
-                disabled={
-                  isNewRecord ||
-                  isEditing ||
-                  saving ||
-                  searchFilter === ""
-                }
-              >
-                Limpiar búsqueda
-              </Button>
-
-              <Button
-                onClick={() =>
-                  setUseSameLineLayout(
-                    (current) => !current
-                  )
-                }
-                disabled={
-                  viewMode !== "form" ||
-                  saving
-                }
-              >
-                {useSameLineLayout
-                  ? "Una columna"
-                  : "Dos columnas"}
-              </Button>
+          <Button
+            onClick={() =>
+              setPage(totalCount)
+            }
+            disabled={
+              viewMode !== "form" ||
+              isNewRecord ||
+              isEditing ||
+              totalCount === 0 ||
+              page >= totalCount
+            }
+          >
+            Último →|
+          </Button>
+        </ButtonGroup>
 
 
-              <Button
-                onClick={() =>
-                  setViewMode("form")
-                }
-                disabled={
-                  isNewRecord ||
-                  isEditing ||
-                  saving ||
-                  viewMode === "form"
-                }
-              >
-                Ficha
-              </Button>
+        {/* Edición */}
+        <ButtonGroup
+          variant="outlined"
+          size="small"
+        >
+          <Button
+            onClick={handleNewRecord}
+            disabled={
+              viewMode !== "form" ||
+              tab.isreadonly === true ||
+              tab.isinsertrecord === false ||
+              isNewRecord ||
+              isEditing ||
+              saving
+            }
+          >
+            Nuevo
+          </Button>
 
-              <Button
-                onClick={() =>
-                  setViewMode("grid")
-                }
-                disabled={
-                  isNewRecord ||
-                  isEditing ||
-                  saving ||
-                  viewMode === "grid"
-                }
-              >
-                Grilla
-              </Button>
+          <Button
+            onClick={handleEditRecord}
+            disabled={
+              viewMode !== "form" ||
+              tab.isreadonly === true ||
+              isNewRecord ||
+              isEditing ||
+              saving ||
+              getRecordKeyValues() ===
+                undefined
+            }
+          >
+            Editar
+          </Button>
 
-              <Button
-                onClick={() =>
-                  setViewMode("list")
-                }
-                disabled={
-                  isNewRecord ||
-                  isEditing ||
-                  saving ||
-                  viewMode === "list"
-                }
-              >
-                Lista
-              </Button>
-
-              {isNewRecord && (
-                <>
-                  <Button
-                    onClick={
-                      handleSaveNewRecord
-                    }
-                    disabled={saving || calloutPending || failedCalloutField !== null}
-                  >
-                    {saving
-                      ? "Guardando..."
-                      : "Guardar"}
-                  </Button>
-
-                  <Button
-                    onClick={() => {
-                      calloutEpochRef.current += 1;
-                      stateEvaluationRef.current += 1;
-                      calloutPendingRef.current = false;
-                      dirtyFieldsRef.current.clear();
-                      previousCalloutValuesRef.current.clear();
-                      queuedFieldsRef.current.clear();
-                      setCalloutPending(false);
-                      setCalloutError(null);
-                      setCalloutMessage(null);
-                      setFailedCalloutField(null);
-                      setSaveError(null);
-                      setIsNewRecord(false);
-                    }}
-                    disabled={saving}
-                  >
-                    Cancelar
-                  </Button>
-                </>
-              )}
-
-              {isEditing && (
-                <>
-                  <Button
-                    onClick={
-                      handleSaveEditedRecord
-                    }
-                    disabled={saving}
-                  >
-                    {saving
-                      ? "Guardando..."
-                      : "Guardar"}
-                  </Button>
-
-                  <Button
-                    onClick={
-                      handleCancelEdit
-                    }
-                    disabled={saving}
-                  >
-                    Cancelar
-                  </Button>
-                </>
-              )}
-
-            </ButtonGroup>
+          <Button
+            onClick={handleDeleteRecord}
+            disabled={
+              viewMode !== "form" ||
+              tab.isreadonly === true ||
+              isNewRecord ||
+              isEditing ||
+              saving ||
+              getRecordKeyValues() ===
+                undefined
+            }
+          >
+            Eliminar
+          </Button>
+        </ButtonGroup>
 
 
-            <Typography variant="body2">
-              {viewMode === "grid"
-                ? `Grilla — ${totalCount} registros`
-                : viewMode === "list"
-                ? `Lista — ${totalCount} registros`
-                : isNewRecord
-                ? "Nuevo registro"
-                : isEditing
-                ? `Editando registro ${page} de ${totalCount}`
-                : totalCount > 0
-                ? `Registro ${page} de ${totalCount}`
-                : "Sin registros"}
-            </Typography>
+        {/* Búsqueda */}
+        <ButtonGroup
+          variant="outlined"
+          size="small"
+        >
+          <Button
+            onClick={() =>
+              setSearchOpen(true)
+            }
+            disabled={
+              isNewRecord ||
+              isEditing ||
+              saving
+            }
+          >
+            Buscar
+          </Button>
 
-            {(isNewRecord || isEditing) && (
-              <Box
-                role={calloutPending ? "status" : undefined}
-                aria-label={calloutPending ? "Actualizando campos" : undefined}
-                sx={{ width: 20, height: 20, flexShrink: 0 }}
-              >
-                {calloutPending && <CircularProgress size={18} />}
-              </Box>
-            )}
+          <Button
+            onClick={() => {
+              setSearchFilter("");
+              setPage(1);
+            }}
+            disabled={
+              isNewRecord ||
+              isEditing ||
+              saving ||
+              searchFilter === ""
+            }
+          >
+            Limpiar búsqueda
+          </Button>
+        </ButtonGroup>
 
 
-            {searchFilter && (
-              <Typography variant="body2">
-                Búsqueda activa
-              </Typography>
+        {/* Layout de ficha */}
+        <ButtonGroup
+          variant="outlined"
+          size="small"
+        >
+          <Button
+            onClick={() =>
+              setUseSameLineLayout(
+                (current) => !current
+              )
+            }
+            disabled={
+              viewMode !== "form" ||
+              saving
+            }
+          >
+            {useSameLineLayout
+              ? "Una columna"
+              : "Dos columnas"}
+          </Button>
+        </ButtonGroup>
+
+
+        {/* Modos de visualización */}
+        <ButtonGroup
+          variant="outlined"
+          size="small"
+        >
+          <Button
+            onClick={() =>
+              setViewMode("form")
+            }
+            disabled={
+              isNewRecord ||
+              isEditing ||
+              saving ||
+              viewMode === "form"
+            }
+          >
+            Ficha
+          </Button>
+
+          <Button
+            onClick={() =>
+              setViewMode("grid")
+            }
+            disabled={
+              isNewRecord ||
+              isEditing ||
+              saving ||
+              viewMode === "grid"
+            }
+          >
+            Grilla
+          </Button>
+
+          <Button
+            onClick={() =>
+              setViewMode("list")
+            }
+            disabled={
+              isNewRecord ||
+              isEditing ||
+              saving ||
+              viewMode === "list"
+            }
+          >
+            Lista
+          </Button>
+        </ButtonGroup>
+
+
+        {/* Acciones de alta */}
+        {isNewRecord && (
+          <ButtonGroup
+            variant="outlined"
+            size="small"
+          >
+            <Button
+              onClick={
+                handleSaveNewRecord
+              }
+              disabled={
+                saving ||
+                calloutPending ||
+                failedCalloutField !== null
+              }
+            >
+              {saving
+                ? "Guardando..."
+                : "Guardar"}
+            </Button>
+
+            <Button
+              onClick={() => {
+                calloutEpochRef.current += 1;
+                stateEvaluationRef.current += 1;
+                calloutPendingRef.current = false;
+
+                dirtyFieldsRef.current.clear();
+                previousCalloutValuesRef.current.clear();
+                queuedFieldsRef.current.clear();
+
+                setCalloutPending(false);
+                setCalloutError(null);
+                setCalloutMessage(null);
+                setFailedCalloutField(null);
+                setSaveError(null);
+                setIsNewRecord(false);
+              }}
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+          </ButtonGroup>
+        )}
+
+
+        {/* Acciones de edición */}
+        {isEditing && (
+          <ButtonGroup
+            variant="outlined"
+            size="small"
+          >
+            <Button
+              onClick={
+                handleSaveEditedRecord
+              }
+              disabled={saving}
+            >
+              {saving
+                ? "Guardando..."
+                : "Guardar"}
+            </Button>
+
+            <Button
+              onClick={
+                handleCancelEdit
+              }
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+          </ButtonGroup>
+        )}
+
+      </Box>
+
+
+      {/* ESTADO DE NAVEGACIÓN */}
+      <Box
+        sx={{
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1,
+          marginBottom: 2,
+        }}
+      >
+        <Typography variant="body2">
+          {viewMode === "grid"
+            ? `Grilla — ${totalCount} registros`
+            : viewMode === "list"
+            ? `Lista — ${totalCount} registros`
+            : isNewRecord
+            ? "Nuevo registro"
+            : isEditing
+            ? `Editando registro ${page} de ${totalCount}`
+            : totalCount > 0
+            ? `Registro ${page} de ${totalCount}`
+            : "Sin registros"}
+        </Typography>
+
+        {(isNewRecord || isEditing) && (
+          <Box
+            role={
+              calloutPending
+                ? "status"
+                : undefined
+            }
+            aria-label={
+              calloutPending
+                ? "Actualizando campos"
+                : undefined
+            }
+            sx={{
+              width: 20,
+              height: 20,
+              flexShrink: 0,
+            }}
+          >
+            {calloutPending && (
+              <CircularProgress
+                size={18}
+              />
             )}
           </Box>
+        )}
+
+        {searchFilter && (
+          <Typography variant="body2">
+            Búsqueda activa
+          </Typography>
+        )}
+      </Box>
 
 
-          {/* MENSAJES CRUD */}
+      {/* MENSAJES CRUD */}
           <Box
             sx={{
               flexShrink: 0,
