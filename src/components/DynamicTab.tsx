@@ -57,6 +57,10 @@ import RecordSearchDialog from "./RecordSearchDialog";
 import RecordGrid from "./RecordGrid";
 import RecordList from "./RecordList";
 
+import type {
+  ListViewState,
+} from "./RecordList";
+
 import LookupField from "./LookupField";
 
 interface Props {
@@ -170,6 +174,15 @@ export default function DynamicTab({
 
   const [viewMode, setViewMode] =
     useState<"form" | "grid" | "list">("form");
+
+  const [listViewState, setListViewState] =
+    useState<ListViewState>({
+      searchText: "",
+      listFilterValues: {},
+      lookupFilterValues: {},
+      page: 0,
+      rowsPerPage: 25,
+    });    
 
  /*
   * Determina si la ficha respeta IsSameLine.
@@ -2670,7 +2683,8 @@ export default function DynamicTab({
             <RecordList
               tab={tab}
               filter={buildRecordFilter()}
-              currentRecordPage={page}
+              state={listViewState}
+              onStateChange={setListViewState}
               onSelectRecord={handleGridSelectRecord}
               onEditRecord={handleListEditRecord}
               onDeleteRecord={handleListDeleteRecord}

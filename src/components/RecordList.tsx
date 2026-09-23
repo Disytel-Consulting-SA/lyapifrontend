@@ -40,10 +40,26 @@ import {
 } from "../utils/searchFields";
 
 
+export interface ListViewState {
+  searchText: string;
+  listFilterValues: Record<string, string>;
+  lookupFilterValues: Record<string, string>;
+  page: number;
+  rowsPerPage: number;
+  orderBy?: string;
+  orderDirection?: "ASC" | "DESC";
+}
+
+
 interface Props {
   tab: WindowSchemaTab;
   filter?: string;
-  currentRecordPage: number;
+
+  state: ListViewState;
+
+  onStateChange: (
+    state: ListViewState
+  ) => void;
 
   onSelectRecord: (
     record: Record<string, unknown>,
@@ -78,45 +94,57 @@ function escapeFilterValue(
 export default function RecordList({
   tab,
   filter,
-  currentRecordPage,
+  state,
+  onStateChange,
   onSelectRecord,
   onEditRecord,
   onDeleteRecord,
 }: Props) {
 
   /*
-   * Campos base del modo Lista:
+   * Campos base del modo Lista.
    *
-   * - Value (Clave)
-   * - Name (Nombre)
+   * Se utiliza la misma semántica que
+   * la búsqueda tradicional:
+   *
+   * - Value
+   * - Name
+   * - DocumentNo
+   * - Description
    * - IsSelectionColumn = Y
    */
-const listFields = useMemo(() => {
-  return getSearchFields(tab.fields)
-    .filter((field) => !field.isencrypted)
-    .sort((a, b) => a.seqno - b.seqno);
-}, [tab.fields]);
+  const listFields = useMemo(() => {
+    return getSearchFields(tab.fields)
+      .filter(
+        (field) =>
+          !field.isencrypted
+      )
+      .sort(
+        (a, b) =>
+          a.seqno - b.seqno
+      );
+  }, [tab.fields]);
 
 
-const searchFields = useMemo(() => {
-  return getSearchFields(tab.fields)
-    .filter(
-      (field) =>
-        !field.isencrypted
-    )
-    .sort(
-      (a, b) =>
-        a.seqno - b.seqno
-    );
-}, [tab.fields]);
+  const searchFields = useMemo(() => {
+    return getSearchFields(tab.fields)
+      .filter(
+        (field) =>
+          !field.isencrypted
+      )
+      .sort(
+        (a, b) =>
+          a.seqno - b.seqno
+      );
+  }, [tab.fields]);
 
 
   /*
    * Campos textuales que participan
    * del multibuscador.
    */
-const textSearchFields = useMemo(() => {
-  return searchFields.filter(
+  const textSearchFields = useMemo(() => {
+    return searchFields.filter(
       (field) =>
         TEXT_REFERENCE_IDS.has(
           field.ad_reference_id
@@ -157,24 +185,30 @@ const textSearchFields = useMemo(() => {
   }, [searchFields]);
 
 
+  /*
+   * Estado persistente de la vista Lista.
+   *
+   * Este estado pertenece a DynamicTab,
+   * por lo que sobrevive cuando RecordList
+   * se desmonta al pasar a Ficha o Grilla.
+   */
+  const {
+    searchText,
+    listFilterValues,
+    lookupFilterValues,
+    page: listPage,
+    rowsPerPage,
+  } = state;
+
+
+  /*
+   * Estado interno/transitorio.
+   */
   const [records, setRecords] =
     useState<Record<string, unknown>[]>([]);
 
   const [totalCount, setTotalCount] =
     useState(0);
-
-  const [rowsPerPage, setRowsPerPage] =
-    useState(25);
-
-  const [listPage, setListPage] =
-    useState(
-      Math.max(
-        0,
-        Math.floor(
-          (currentRecordPage - 1) / 25
-        )
-      )
-    );
 
   const [loading, setLoading] =
     useState(false);
@@ -182,25 +216,29 @@ const textSearchFields = useMemo(() => {
   const [error, setError] =
     useState<string | null>(null);
 
-  const [searchText, setSearchText] =
-    useState("");
-
-  const [debouncedSearchText, setDebouncedSearchText] =
-    useState("");
-
   const [
-    listFilterValues,
-    setListFilterValues,
-  ] = useState<
-    Record<string, string>
-  >({});
+    debouncedSearchText,
+    setDebouncedSearchText,
+  ] = useState(searchText);
 
-  const [
-    lookupFilterValues,
-    setLookupFilterValues,
-  ] = useState<
-    Record<string, string>
-  >({});
+
+  /*
+   * Debounce del multibuscador textual.
+   */
+  useEffect(() => {
+    const timeoutId =
+      window.setTimeout(() => {
+        setDebouncedSearchText(
+          searchText
+        );
+      }, 350);
+
+    return () => {
+      window.clearTimeout(
+        timeoutId
+      );
+    };
+  }, [searchText]);
 
 
   /*
@@ -215,58 +253,68 @@ const textSearchFields = useMemo(() => {
    * )
    */
   const textFilter = useMemo(() => {
-    const value = debouncedSearchText.trim();
+    const value =
+      debouncedSearchText.trim();
 
-    if (!value || textSearchFields.length === 0) {
+    if (
+      !value ||
+      textSearchFields.length === 0
+    ) {
       return "";
     }
 
     const escapedValue =
       value.replace(/'/g, "''");
 
-    const conditions = textSearchFields.map(
-      (field) =>
-        `${field.columnname} ILIKE '%${escapedValue}%'`
-    );
+    const conditions =
+      textSearchFields.map(
+        (field) =>
+          `${field.columnname} ILIKE '%${escapedValue}%'`
+      );
 
     return `(${conditions.join(" OR ")})`;
-  }, [debouncedSearchText, textSearchFields]);
+  }, [
+    debouncedSearchText,
+    textSearchFields,
+  ]);
 
 
   /*
-   * Filtros correspondientes a referencias List.
+   * Filtros correspondientes a
+   * referencias List.
    */
-  const listValueFilter = useMemo(() => {
-    const conditions: string[] = [];
+  const listValueFilter =
+    useMemo(() => {
+      const conditions: string[] = [];
 
-    for (
-      const field of listFilterFields
-    ) {
-      const value =
-        listFilterValues[
-          field.columnname
-        ];
-
-      if (
-        value === undefined ||
-        value === ""
+      for (
+        const field of listFilterFields
       ) {
-        continue;
+        const value =
+          listFilterValues[
+            field.columnname
+          ];
+
+        if (
+          value === undefined ||
+          value === ""
+        ) {
+          continue;
+        }
+
+        const escapedValue =
+          escapeFilterValue(value);
+
+        conditions.push(
+          `${field.columnname} = '${escapedValue}'`
+        );
       }
 
-      const escapedValue =
-        escapeFilterValue(value);
-
-      conditions.push(
-        `${field.columnname} = '${escapedValue}'`
-      );
-    }
-
-    return conditions.join(" AND ");
-  }, [
-    listFilterFields,
-    listFilterValues,
-  ]);
+      return conditions.join(" AND ");
+    }, [
+      listFilterFields,
+      listFilterValues,
+    ]);
 
 
   /*
@@ -310,55 +358,25 @@ const textSearchFields = useMemo(() => {
   /*
    * Filtro final enviado al REST API.
    */
-  const effectiveFilter = useMemo(() => {
-    const filters = [
-      filter?.trim(),
+  const effectiveFilter =
+    useMemo(() => {
+      const filters = [
+        filter?.trim(),
+        textFilter,
+        listValueFilter,
+        lookupValueFilter,
+      ].filter(
+        (item): item is string =>
+          Boolean(item)
+      );
+
+      return filters.join(" AND ");
+    }, [
+      filter,
       textFilter,
       listValueFilter,
       lookupValueFilter,
-    ].filter(
-      (item): item is string =>
-        Boolean(item)
-    );
-
-    return filters.join(" AND ");
-  }, [
-    filter,
-    textFilter,
-    listValueFilter,
-    lookupValueFilter,
-  ]);
-
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setDebouncedSearchText(searchText);
-    }, 350);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [searchText]);
-
-
-  /*
-   * Mantener sincronizada la página.
-   */
-  useEffect(() => {
-    const newPage =
-      Math.max(
-        0,
-        Math.floor(
-          (currentRecordPage - 1) /
-            rowsPerPage
-        )
-      );
-
-    setListPage(newPage);
-  }, [
-    currentRecordPage,
-    rowsPerPage,
-  ]);
+    ]);
 
 
   /*
@@ -485,11 +503,12 @@ const textSearchFields = useMemo(() => {
   function handleSearchChange(
     event: ChangeEvent<HTMLInputElement>
   ) {
-    setSearchText(
-      event.target.value
-    );
-
-    setListPage(0);
+    onStateChange({
+      ...state,
+      searchText:
+        event.target.value,
+      page: 0,
+    });
   }
 
 
@@ -497,14 +516,16 @@ const textSearchFields = useMemo(() => {
     columnName: string,
     value: string
   ) {
-    setListFilterValues(
-      (current) => ({
-        ...current,
-        [columnName]: value,
-      })
-    );
+    onStateChange({
+      ...state,
 
-    setListPage(0);
+      listFilterValues: {
+        ...state.listFilterValues,
+        [columnName]: value,
+      },
+
+      page: 0,
+    });
   }
 
 
@@ -512,14 +533,16 @@ const textSearchFields = useMemo(() => {
     columnName: string,
     value: string
   ) {
-    setLookupFilterValues(
-      (current) => ({
-        ...current,
-        [columnName]: value,
-      })
-    );
+    onStateChange({
+      ...state,
 
-    setListPage(0);
+      lookupFilterValues: {
+        ...state.lookupFilterValues,
+        [columnName]: value,
+      },
+
+      page: 0,
+    });
   }
 
 
@@ -527,21 +550,27 @@ const textSearchFields = useMemo(() => {
     _event: unknown,
     newPage: number
   ) {
-    setListPage(newPage);
+    onStateChange({
+      ...state,
+      page: newPage,
+    });
   }
 
 
   function handleRowsPerPageChange(
     event: ChangeEvent<HTMLInputElement>
   ) {
-    setRowsPerPage(
-      parseInt(
-        event.target.value,
-        10
-      )
-    );
+    onStateChange({
+      ...state,
 
-    setListPage(0);
+      rowsPerPage:
+        parseInt(
+          event.target.value,
+          10
+        ),
+
+      page: 0,
+    });
   }
 
 
