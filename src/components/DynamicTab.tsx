@@ -2683,6 +2683,7 @@ export default function DynamicTab({
             <RecordList
               tab={tab}
               filter={buildRecordFilter()}
+              refreshToken={refreshToken}
               state={listViewState}
               onStateChange={setListViewState}
               onSelectRecord={handleGridSelectRecord}

@@ -54,6 +54,7 @@ export interface ListViewState {
 interface Props {
   tab: WindowSchemaTab;
   filter?: string;
+  refreshToken: number;
 
   state: ListViewState;
 
@@ -94,6 +95,7 @@ function escapeFilterValue(
 export default function RecordList({
   tab,
   filter,
+  refreshToken,
   state,
   onStateChange,
   onSelectRecord,
@@ -425,6 +427,39 @@ export default function RecordList({
           return;
         }
 
+        /*
+        * Si la página actual dejó de existir
+        * (por ejemplo, al eliminar el único
+        * registro de la última página),
+        * retrocedemos a la última página válida.
+        *
+        * El cambio de estado disparará
+        * automáticamente una nueva consulta.
+        */
+        if (
+          result.records.length === 0 &&
+          result.totalCount > 0 &&
+          listPage > 0
+        ) {
+          const lastPage =
+            Math.max(
+              0,
+              Math.ceil(
+                result.totalCount /
+                  rowsPerPage
+              ) - 1
+            );
+
+          if (lastPage < listPage) {
+            onStateChange({
+              ...state,
+              page: lastPage,
+            });
+
+            return;
+          }
+        }
+
         setRecords(
           result.records
         );
@@ -468,6 +503,7 @@ export default function RecordList({
     rowsPerPage,
     listPage,
     sort,
+    refreshToken,
   ]);
 
 
@@ -1045,12 +1081,8 @@ export default function RecordList({
         component="div"
         count={totalCount}
         page={listPage}
-        rowsPerPage={
-          rowsPerPage
-        }
-        onPageChange={
-          handlePageChange
-        }
+        onPageChange={handlePageChange}
+        rowsPerPage={rowsPerPage}
         onRowsPerPageChange={
           handleRowsPerPageChange
         }
@@ -1058,9 +1090,15 @@ export default function RecordList({
           10,
           25,
           50,
+          100,
         ]}
-        labelRowsPerPage={
-          "Registros por página:"
+        labelRowsPerPage="Registros por página:"
+        labelDisplayedRows={({
+          from,
+          to,
+          count,
+        }) =>
+          `${from}-${to} de ${count}`
         }
       />
 
