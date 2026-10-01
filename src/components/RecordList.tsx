@@ -25,7 +25,7 @@ import {
 } from "@mui/material";
 
 import {
-  searchRecords,
+  getTabRecords,
 } from "../api/libertyaApi";
 
 import type {
@@ -54,6 +54,7 @@ export interface ListViewState {
 interface Props {
   tab: WindowSchemaTab;
   filter?: string;
+  parentValues?: Record<string, string>;
   refreshToken: number;
 
   state: ListViewState;
@@ -95,6 +96,7 @@ function escapeFilterValue(
 export default function RecordList({
   tab,
   filter,
+  parentValues,
   refreshToken,
   state,
   onStateChange,
@@ -126,6 +128,25 @@ export default function RecordList({
           a.seqno - b.seqno
       );
   }, [tab.fields]);
+
+
+  /*
+   * La lista solo necesita recuperar los campos
+   * que muestra y las columnas de la clave primaria.
+   */
+  const fields = useMemo(() => {
+    const columns = new Set<string>();
+
+    for (const columnName of tab.pk_columns ?? []) {
+      columns.add(columnName);
+    }
+
+    for (const field of listFields) {
+      columns.add(field.columnname);
+    }
+
+    return Array.from(columns).join(",");
+  }, [tab.pk_columns, listFields]);
 
 
   const searchFields = useMemo(() => {
@@ -240,6 +261,7 @@ export default function RecordList({
     orderDirection,
   ]);
 
+
   /*
    * Debounce del multibuscador textual.
    */
@@ -261,14 +283,6 @@ export default function RecordList({
 
   /*
    * Multi-search textual.
-   *
-   * Ejemplo:
-   *
-   * (
-   *   Value ILIKE '%acme%'
-   *   OR Name ILIKE '%acme%'
-   *   OR TaxID ILIKE '%acme%'
-   * )
    */
   const textFilter = useMemo(() => {
     const value =
@@ -375,6 +389,10 @@ export default function RecordList({
 
   /*
    * Filtro final enviado al REST API.
+   *
+   * El scope propio de AD_Tab y la relación parent/detail
+   * son resueltos por el backend. Aquí solo quedan filtros
+   * correspondientes a la búsqueda del usuario.
    */
   const effectiveFilter =
     useMemo(() => {
@@ -415,12 +433,29 @@ export default function RecordList({
 
       try {
         const result =
-          await searchRecords(
-            tab.data_endpoint!,
-            effectiveFilter,
-            rowsPerPage,
-            listPage + 1,
-            sort
+          await getTabRecords(
+            tab.ad_tab_id,
+            {
+              parent_values:
+                parentValues,
+
+              filter:
+                effectiveFilter ||
+                undefined,
+
+              fields,
+
+              sort,
+
+              limit:
+                rowsPerPage,
+
+              page:
+                listPage + 1,
+
+              include_total:
+                true,
+            }
           );
 
         if (cancelled) {
@@ -428,14 +463,14 @@ export default function RecordList({
         }
 
         /*
-        * Si la página actual dejó de existir
-        * (por ejemplo, al eliminar el único
-        * registro de la última página),
-        * retrocedemos a la última página válida.
-        *
-        * El cambio de estado disparará
-        * automáticamente una nueva consulta.
-        */
+         * Si la página actual dejó de existir
+         * (por ejemplo, al eliminar el único
+         * registro de la última página),
+         * retrocedemos a la última página válida.
+         *
+         * El cambio de estado disparará
+         * automáticamente una nueva consulta.
+         */
         if (
           result.records.length === 0 &&
           result.totalCount > 0 &&
@@ -498,7 +533,10 @@ export default function RecordList({
       cancelled = true;
     };
   }, [
+    tab.ad_tab_id,
     tab.data_endpoint,
+    parentValues,
+    fields,
     effectiveFilter,
     rowsPerPage,
     listPage,
@@ -990,6 +1028,7 @@ export default function RecordList({
             >
 
               {/* Valores */}
+
               {listFields.map(
                 (field) => {
                   const value =
@@ -1008,13 +1047,6 @@ export default function RecordList({
                       sx={{
                         minWidth: 0,
 
-                        /*
-                        * En modo card no tiene sentido
-                        * ocupar espacio con campos vacíos.
-                        *
-                        * En desktop se conserva la celda
-                        * para mantener alineadas las columnas.
-                        */
                         display: {
                           xs: empty
                             ? "none"
@@ -1076,7 +1108,6 @@ export default function RecordList({
                       md: 1,
                     },
                   },
-
                 }}
               >
                 <Button

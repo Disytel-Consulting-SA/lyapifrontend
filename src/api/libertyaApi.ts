@@ -42,6 +42,22 @@ export interface RecordSearchResult {
   totalCount: number;
 }
 
+
+export interface TabRecordQuery {
+  parent_values?: Record<string, string>;
+  filter?: string;
+  fields?: string;
+  sort?: string;
+  limit?: number;
+  page?: number;
+  include_total?: boolean;
+}
+
+export interface TabRecordResult {
+  records: Record<string, unknown>[];
+  totalCount: number;
+}
+
 export interface WindowRecordFieldState {
   ad_field_id: number;
   columnname: string;
@@ -558,6 +574,51 @@ export async function searchRecords(
     totalCountHeader !== null
       ? Number(totalCountHeader)
       : records.length;
+
+  return {
+    records,
+    totalCount,
+  };
+}
+
+
+
+/**
+ * Recupera registros respetando la semántica efectiva de una AD_Tab:
+ * WhereClause, contexto, relación padre/detalle, permisos y OrderByClause.
+ */
+export async function getTabRecords(
+  tabId: number,
+  query: TabRecordQuery = {}
+): Promise<TabRecordResult> {
+
+  const response = await authenticatedFetch(
+    `${BASE_URL}/v1.0/tabs/${tabId}/records`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(query),
+    }
+  );
+
+  if (!response.ok) {
+    const detail = await response.text();
+
+    throw new Error(
+      detail
+        ? `Error recuperando registros de pestaña ${tabId}: ${detail}`
+        : `Error recuperando registros de pestaña ${tabId}: ${response.status}`
+    );
+  }
+
+  const records = await response.json();
+
+  const totalCountHeader = response.headers.get("X-Total-Count");
+  const totalCount = totalCountHeader !== null
+    ? Number(totalCountHeader)
+    : records.length;
 
   return {
     records,

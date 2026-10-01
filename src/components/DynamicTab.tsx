@@ -20,7 +20,7 @@ import {
   deleteRecord,
   evaluateRecordState,
   executeTabFieldCallout,
-  getRecord,
+  getTabRecords,
   getNewRecordState,
   getRecordByKey,
   updateRecord,
@@ -489,29 +489,6 @@ export default function DynamicTab({
     }
 
 
-  function getParentKeyValue(): unknown {
-    if (
-      tab.parent_ad_tab_id === undefined ||
-      !parentTab ||
-      !parentRecord
-    ) {
-      return undefined;
-    }
-
-    const keyField =
-      parentTab.fields.find(
-        (field) => field.iskey
-      );
-
-    if (!keyField)
-      return undefined;
-
-    return parentRecord[
-      keyField.columnname.toLowerCase()
-    ];
-  }
-
-
   function buildParentValues():
     Record<string, string> | undefined {
 
@@ -553,37 +530,8 @@ export default function DynamicTab({
   }
 
 
-  function buildRecordFilter():
-    string | undefined {
-
-    const filters: string[] = [];
-
-    if (
-      tab.parent_ad_tab_id !== undefined
-    ) {
-
-      const parentValue =
-        getParentKeyValue();
-
-      if (
-        parentValue === undefined ||
-        parentValue === null ||
-        !tab.link_columnname
-      ) {
-        return undefined;
-      }
-
-      filters.push(
-        `${tab.link_columnname}=${parentValue}`
-      );
-    }
-
-    if (searchFilter)
-      filters.push(searchFilter);
-
-    return filters.length > 0
-      ? filters.join(" and ")
-      : undefined;
+  function buildRecordFilter(): string | undefined {
+    return searchFilter || undefined;
   }
 
 
@@ -2028,7 +1976,6 @@ export default function DynamicTab({
 
 
   useEffect(() => {
-
     if (isNewRecord)
       return;
 
@@ -2036,85 +1983,65 @@ export default function DynamicTab({
       setRecord({});
       setFieldStates([]);
       setTotalCount(0);
-
-      onRecordChange(
-        tab.ad_tab_id,
-        null
-      );
-
+      onRecordChange(tab.ad_tab_id, null);
       return;
     }
 
-    const filter =
-      buildRecordFilter();
+    const parentValues = buildParentValues();
 
-    if (
-      tab.parent_ad_tab_id !== undefined &&
-      filter === undefined
-    ) {
+    /*
+    * Una pestaña detail sin registro padre seleccionado
+    * no debe recuperar registros.
+    */
+    if (tab.parent_ad_tab_id !== undefined && !parentValues) {
       setRecord({});
       setFieldStates([]);
       setTotalCount(0);
-
-      onRecordChange(
-        tab.ad_tab_id,
-        null
-      );
-
+      onRecordChange(tab.ad_tab_id, null);
       return;
     }
 
-    getRecord(
-      tab.data_endpoint,
+    getTabRecords(tab.ad_tab_id, {
+      parent_values: parentValues,
+      filter: buildRecordFilter(),
+      limit: 1,
       page,
-      filter
-    )
-      .then(
-        ({
-          record: result,
-          totalCount,
-        }) => {
+      include_total: true,
+    })
+      .then(({ records, totalCount }) => {
+        const result = records.length > 0 ? records[0] : null;
 
-          setTotalCount(totalCount);
+        setTotalCount(totalCount);
 
-          if (result === null) {
-            if (
-              totalCount > 0 &&
-              page > totalCount
-            ) {
-              setPage(totalCount);
-            } else {
-              setRecord({});
-              setFieldStates([]);
-
-              onRecordChange(
-                tab.ad_tab_id,
-                null
-              );
-            }
-
-            return;
+        if (result === null) {
+          if (totalCount > 0 && page > totalCount) {
+            setPage(totalCount);
+          } else {
+            setRecord({});
+            setFieldStates([]);
+            onRecordChange(tab.ad_tab_id, null);
           }
 
-          setRecord(result);
-
-          setOriginalRecord({
-            ...result,
-          });
-
-          onRecordChange(
-            tab.ad_tab_id,
-            result
-          );
-
-          void reevaluateRecordState(
-            result
-          );
+          return;
         }
-      )
+
+        setRecord(result);
+        recordRef.current = result;
+
+        setOriginalRecord({
+          ...result,
+        });
+
+        onRecordChange(
+          tab.ad_tab_id,
+          result
+        );
+
+        void reevaluateRecordState(result);
+      })
       .catch((error) => {
         console.error(
-          `Error recuperando datos desde ${tab.data_endpoint}`,
+          `Error recuperando registros de AD_Tab_ID=${tab.ad_tab_id}`,
           error
         );
 
@@ -2737,6 +2664,7 @@ export default function DynamicTab({
             <RecordGrid
               tab={tab}
               filter={buildRecordFilter()}
+              parentValues={buildParentValues()}
               currentRecordPage={page}
               onSelectRecord={handleGridSelectRecord}
             />
@@ -2744,6 +2672,7 @@ export default function DynamicTab({
             <RecordList
               tab={tab}
               filter={buildRecordFilter()}
+              parentValues={buildParentValues()}
               refreshToken={refreshToken}
               state={listViewState}
               onStateChange={setListViewState}

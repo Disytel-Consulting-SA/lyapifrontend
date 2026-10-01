@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 
 import {
-  searchRecords,
+  getTabRecords,
 } from "../api/libertyaApi";
 
 import type {
@@ -28,6 +28,7 @@ import RecordDisplayValue from "./RecordDisplayValue";
 interface Props {
   tab: WindowSchemaTab;
   filter?: string;
+  parentValues?: Record<string, string>;
   currentRecordPage: number;
 
   onSelectRecord: (
@@ -40,6 +41,7 @@ interface Props {
 export default function RecordGrid({
   tab,
   filter,
+  parentValues,
   currentRecordPage,
   onSelectRecord,
 }: Props) {
@@ -87,6 +89,25 @@ export default function RecordGrid({
 
 
   /*
+   * La grilla solo necesita recuperar las columnas
+   * que muestra y las columnas de la clave primaria.
+   */
+  const fields = useMemo(() => {
+    const columns = new Set<string>();
+
+    for (const columnName of tab.pk_columns ?? []) {
+      columns.add(columnName);
+    }
+
+    for (const field of gridFields) {
+      columns.add(field.columnname);
+    }
+
+    return Array.from(columns).join(",");
+  }, [tab.pk_columns, gridFields]);
+
+
+  /*
    * Al cambiar de pestaña, recuperar la página
    * correspondiente al registro actualmente
    * seleccionado.
@@ -106,6 +127,10 @@ export default function RecordGrid({
   /*
    * Recuperar los registros correspondientes
    * a la página actual.
+   *
+   * El backend aplica la semántica efectiva de AD_Tab:
+   * WhereClause, contexto, parent/detail, permisos
+   * y OrderByClause.
    */
   useEffect(() => {
     if (!tab.data_endpoint) {
@@ -119,12 +144,14 @@ export default function RecordGrid({
     setLoading(true);
     setError(null);
 
-    searchRecords(
-      tab.data_endpoint,
-      filter ?? "",
-      rowsPerPage,
-      gridPage + 1
-    )
+    getTabRecords(tab.ad_tab_id, {
+      parent_values: parentValues,
+      filter,
+      fields,
+      limit: rowsPerPage,
+      page: gridPage + 1,
+      include_total: true,
+    })
       .then((result) => {
         if (cancelled)
           return;
@@ -164,6 +191,8 @@ export default function RecordGrid({
     tab.ad_tab_id,
     tab.data_endpoint,
     filter,
+    parentValues,
+    fields,
     gridPage,
     rowsPerPage,
   ]);
