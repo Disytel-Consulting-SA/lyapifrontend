@@ -1562,14 +1562,8 @@ export default function DynamicTab({
           editable={editable}
           visualState={visualState}
           requiredEmpty={isRequiredFieldEmpty(field)}
-          onChange={
-            (value) =>
-              setFieldValue(
-                field,
-                value,
-                true
-              )
-          }
+          contextValues={lookupContextValues}
+          onChange={(value) => setFieldValue(field, value, true)}
         />
       );
     }

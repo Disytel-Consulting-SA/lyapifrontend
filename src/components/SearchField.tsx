@@ -28,6 +28,7 @@ interface Props {
   editable: boolean;
   visualState: FieldVisualState;
   requiredEmpty: boolean;
+  contextValues: Record<string, string>;
   onChange: (value: string) => void;
 }
 
@@ -38,6 +39,7 @@ export default function SearchField({
   editable,
   visualState,
   requiredEmpty,
+  contextValues,
   onChange,
 }: Props) {
 
@@ -47,25 +49,25 @@ export default function SearchField({
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const searchInputRef =  useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const endpoint = field.reference?.endpoint;
   const value = rawValue === null || rawValue === undefined ? "" : String(rawValue);
 
 
   useEffect(() => {
-    if (!open)
-      return;
+    if (!open) return;
 
-    const timer =
-      window.setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 100);
+    const timer = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 100);
 
-    return () =>
-      window.clearTimeout(timer);
+    return () => window.clearTimeout(timer);
   }, [open]);
 
 
+  /*
+   * Resolver el valor actualmente seleccionado.
+   */
   useEffect(() => {
     if (!endpoint || value === "") {
       setSelectedOption(null);
@@ -74,7 +76,7 @@ export default function SearchField({
 
     let cancelled = false;
 
-    getLookupValues(endpoint, 1, 1, undefined, value)
+    getLookupValues(endpoint, 1, 1, undefined, value, contextValues)
       .then((values) => {
         if (!cancelled && values.length > 0)
           setSelectedOption(values[0]);
@@ -91,19 +93,21 @@ export default function SearchField({
     return () => {
       cancelled = true;
     };
-  }, [endpoint, value]);
+  }, [endpoint, value, contextValues]);
 
 
+  /*
+   * Recuperar los valores seleccionables.
+   */
   useEffect(() => {
-    if (!open || !endpoint || !editable)
-      return;
+    if (!open || !endpoint || !editable) return;
 
     let cancelled = false;
 
     setLoading(true);
     setError(null);
 
-    getLookupValues(endpoint, 50, 1, searchText || undefined)
+    getLookupValues(endpoint, 50, 1, searchText || undefined, undefined, contextValues)
       .then((values) => {
         if (!cancelled)
           setResults(values);
@@ -124,12 +128,11 @@ export default function SearchField({
     return () => {
       cancelled = true;
     };
-  }, [open, endpoint, searchText, editable]);
+  }, [open, endpoint, searchText, contextValues, editable]);
 
 
   function handleSelect(option: LookupValue) {
-    if (!editable)
-      return;
+    if (!editable) return;
 
     setSelectedOption(option);
     onChange(option.value);
@@ -138,8 +141,7 @@ export default function SearchField({
 
 
   function handleClear() {
-    if (!editable)
-      return;
+    if (!editable) return;
 
     setSelectedOption(null);
     onChange("");
@@ -147,8 +149,7 @@ export default function SearchField({
 
 
   function handleOpen() {
-    if (!editable)
-      return;
+    if (!editable) return;
 
     setSearchText("");
     setResults([]);
@@ -182,7 +183,7 @@ export default function SearchField({
           variant="contained"
           disabled={!editable}
           onClick={handleOpen}
-          sx={{ minWidth: 100, marginTop: 0.5, }}
+          sx={{ minWidth: 100, marginTop: 0.5 }}
         >
           Buscar
         </Button>
@@ -192,7 +193,7 @@ export default function SearchField({
             variant="outlined"
             disabled={!editable}
             onClick={handleClear}
-            sx={{ minWidth: 90, marginTop: 0.5, }}
+            sx={{ minWidth: 90, marginTop: 0.5 }}
           >
             Limpiar
           </Button>
