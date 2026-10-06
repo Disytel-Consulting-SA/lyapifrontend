@@ -117,6 +117,7 @@ export interface WindowSchemaReferenceValue {
 
 export interface WindowSchemaReference {
   type: string;
+  button_type?: string;
   values?: WindowSchemaReferenceValue[];
   endpoint?: string;
 }

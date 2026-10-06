@@ -63,6 +63,8 @@ import type {
 
 import LookupField from "./LookupField";
 
+import ButtonField from "./ButtonField";
+
 interface Props {
   tab: WindowSchemaTab;
   parentTab?: WindowSchemaTab;
@@ -962,6 +964,15 @@ export default function DynamicTab({
   }
 
 
+  function getDocumentRecordId(): string | number | undefined {
+  const keyValues = getRecordKeyValues();
+
+  if (!keyValues || keyValues.length !== 1) return undefined;
+
+  return keyValues[0];
+}
+
+
   async function handleSaveNewRecord() {
     if (calloutPendingRef.current || failedCalloutField) {
       return;
@@ -1457,26 +1468,16 @@ export default function DynamicTab({
       );
 
 
-    if (
-      field.reference?.type === "button"
-    ) {
+    if (field.reference?.type === "button") {
       return (
-        <Box
+        <ButtonField
           key={field.ad_field_id}
-          sx={{
-            marginTop: 2,
-            marginBottom: 1,
-          }}
-        >
-          <Button
-            variant="contained"
-            size="small"
-            disabled
-          >
-            {field.name}
-          </Button>
-
-        </Box>
+          field={field}
+          tableName={tab.tablename}
+          recordId={getDocumentRecordId()}
+          disabled={isNewRecord || isEditing}
+          onProcessed={() => setRefreshToken((current) => current + 1)}
+        />
       );
     }
 
@@ -2694,3 +2695,4 @@ export default function DynamicTab({
     </Box>
   );
 }
+

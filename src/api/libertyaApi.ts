@@ -116,6 +116,18 @@ export interface Location {
 }
 
 
+export interface DocumentAction {
+  value: string;
+  name: string;
+  description?: string;
+}
+
+export interface DocumentActions {
+  docStatus: string;
+  defaultAction?: string | null;
+  actions: DocumentAction[];
+}
+
 /**
  * Obtiene un JWT de Libertya REST API.
  *
@@ -976,6 +988,67 @@ export async function deleteRecord(
       detail
         ? `Error eliminando registro: ${detail}`
         : `Error eliminando registro: ${response.status}`
+    );
+  }
+
+  return response.text();
+}
+
+
+
+/**
+ * Recupera las acciones actualmente disponibles para un documento.
+ *
+ * El backend resuelve las acciones válidas según el estado actual
+ * del documento, personalizaciones, plugins, workflow y permisos.
+ */
+export async function getDocumentActions(
+  tableName: string,
+  recordId: string | number
+): Promise<DocumentActions> {
+  const response = await authenticatedFetch(
+    `${BASE_URL}/v1.0/generic/${encodeURIComponent(tableName)}/${encodeURIComponent(String(recordId))}/process/actions`
+  );
+
+  if (!response.ok) {
+    const detail = await response.text();
+
+    throw new Error(
+      detail
+        ? `Error recuperando acciones del documento: ${detail}`
+        : `Error recuperando acciones del documento: ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
+
+/**
+ * Ejecuta una acción sobre un documento.
+ */
+export async function processDocument(
+  tableName: string,
+  recordId: string | number,
+  action: string
+): Promise<string> {
+  const params = new URLSearchParams();
+  params.set("action", action);
+
+  const response = await authenticatedFetch(
+    `${BASE_URL}/v1.0/generic/${encodeURIComponent(tableName)}/${encodeURIComponent(String(recordId))}/process?${params.toString()}`,
+    {
+      method: "PUT",
+    }
+  );
+
+  if (!response.ok) {
+    const detail = await response.text();
+
+    throw new Error(
+      detail
+        ? `Error procesando documento: ${detail}`
+        : `Error procesando documento: ${response.status}`
     );
   }
 
