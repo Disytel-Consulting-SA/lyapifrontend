@@ -923,7 +923,19 @@ export async function createRecord(
   }
 
 
-  return response.text();
+  /*
+   * Los endpoints de alta retornan el ID como String.
+   * Dependiendo de la serialización puede llegar como 123
+   * o como "123"; normalizamos ambas variantes antes de
+   * utilizarlo para recuperar el registro creado.
+   */
+  const createdId =
+    await response.text();
+
+  return createdId.replace(
+    /^"|"$/g,
+    ""
+  );
 }
 
 
