@@ -154,6 +154,15 @@ export default function DynamicTab({
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
+  /*
+   * Durante un alta dejamos temporalmente la navegación normal.
+   * Después de guardar, el registro recién creado permanece como
+   * registro actual hasta que el usuario vuelva explícitamente al
+   * conjunto navegable.
+   */
+  const [isNavigationDetached, setIsNavigationDetached] =
+    useState(false);
+
   const [fieldStates, setFieldStates] =
     useState<WindowRecordFieldState[]>([]);
 
@@ -580,7 +589,8 @@ export default function DynamicTab({
 
   async function reevaluateRecordState(
     currentRecord: Record<string, unknown>,
-    changedColumn?: string
+    changedColumn?: string,
+    inserting = isNewRecord
   ) {
     const evaluation = ++stateEvaluationRef.current;
     try {
@@ -601,8 +611,7 @@ export default function DynamicTab({
                 ? [changedColumn]
                 : undefined,
 
-            inserting:
-              isNewRecord,
+            inserting,
           }
         );
 
@@ -874,6 +883,7 @@ export default function DynamicTab({
       setCalloutError(null);
       setCalloutMessage(null);
       setFailedCalloutField(null);
+      setIsNavigationDetached(true);
       setIsNewRecord(true);
       setRecord(newRecord);
 
@@ -1021,40 +1031,59 @@ export default function DynamicTab({
           payload
         );
 
+      if (!tab.data_endpoint) {
+        throw new Error(
+          "El registro fue creado pero la pestaña no posee un endpoint REST para recuperarlo"
+        );
+      }
+
       /*
-      * El nuevo registro queda al final de la navegación.
-      *
-      * totalCount todavía contiene la cantidad anterior
-      * al alta, por lo que la nueva posición es + 1.
-      */
-      const newPage =
-        totalCount + 1;
+       * El alta y la navegación son contextos distintos.
+       * No intentamos inferir en qué posición quedó el registro:
+       * lo recuperamos directamente por su clave y lo mantenemos
+       * como registro actual.
+       */
+      const createdRecord =
+        await getRecordByKey(
+          tab.data_endpoint,
+          [createdId]
+        );
+
+      if (!createdRecord) {
+        throw new Error(
+          "El registro fue creado pero no pudo recuperarse nuevamente."
+        );
+      }
+
+      calloutEpochRef.current += 1;
+      stateEvaluationRef.current += 1;
+
+      setIsNewRecord(false);
+      setRecord(createdRecord);
+      recordRef.current = createdRecord;
+
+      setOriginalRecord({
+        ...createdRecord,
+      });
+
+      onRecordChange(
+        tab.ad_tab_id,
+        createdRecord
+      );
+
+      setIsNavigationDetached(true);
+
+      void reevaluateRecordState(
+        createdRecord,
+        undefined,
+        false
+      );
 
       setSaveMessage(
         createdId
           ? `Registro creado correctamente. ID: ${createdId}`
           : "Registro creado correctamente."
       );
-
-      /*
-      * Primero posicionamos la navegación sobre
-      * el registro recién creado.
-      */
-      setPage(newPage);
-
-      onPageChange(
-        tab.ad_tab_id,
-        newPage
-      );
-
-      /*
-      * Al salir del modo alta se vuelve a ejecutar
-      * el efecto de carga. Como page ahora apunta
-      * al nuevo registro, se recuperará desde REST.
-      */
-      setIsNewRecord(false);
-      calloutEpochRef.current += 1;
-      stateEvaluationRef.current += 1;
 
     } catch (error) {
       console.error(
@@ -1955,6 +1984,7 @@ export default function DynamicTab({
     setFailedCalloutField(null);
     setIsNewRecord(false);
     setIsEditing(false);
+    setIsNavigationDetached(false);
     setOriginalRecord(null);
 
     setViewMode("form");
@@ -1971,7 +2001,7 @@ export default function DynamicTab({
 
 
   useEffect(() => {
-    if (isNewRecord)
+    if (isNewRecord || isNavigationDetached)
       return;
 
     if (!tab.data_endpoint) {
@@ -2055,6 +2085,7 @@ export default function DynamicTab({
     page,
     parentRecord,
     isNewRecord,
+    isNavigationDetached,
     refreshToken,
     searchFilter,
   ]);
@@ -2163,6 +2194,7 @@ export default function DynamicTab({
             disabled={
               viewMode !== "form" ||
               isNewRecord ||
+              isNavigationDetached ||
               isEditing ||
               page === 1 ||
               totalCount === 0
@@ -2184,6 +2216,7 @@ export default function DynamicTab({
             disabled={
               viewMode !== "form" ||
               isNewRecord ||
+              isNavigationDetached ||
               isEditing ||
               page === 1
             }
@@ -2201,6 +2234,7 @@ export default function DynamicTab({
             disabled={
               viewMode !== "form" ||
               isNewRecord ||
+              isNavigationDetached ||
               isEditing ||
               totalCount === 0 ||
               page >= totalCount
@@ -2216,6 +2250,7 @@ export default function DynamicTab({
             disabled={
               viewMode !== "form" ||
               isNewRecord ||
+              isNavigationDetached ||
               isEditing ||
               totalCount === 0 ||
               page >= totalCount
@@ -2288,6 +2323,7 @@ export default function DynamicTab({
             }
             disabled={
               isNewRecord ||
+              isNavigationDetached ||
               isEditing ||
               saving
             }
@@ -2302,6 +2338,7 @@ export default function DynamicTab({
             }}
             disabled={
               isNewRecord ||
+              isNavigationDetached ||
               isEditing ||
               saving ||
               searchFilter === ""
@@ -2310,6 +2347,30 @@ export default function DynamicTab({
             Limpiar búsqueda
           </Button>
         </ButtonGroup>
+
+
+
+        {isNavigationDetached && !isNewRecord && (
+          <ButtonGroup
+            variant="outlined"
+            size="small"
+          >
+            <Button
+              onClick={() => {
+                setIsNavigationDetached(false);
+                setRefreshToken(
+                  (current) => current + 1
+                );
+              }}
+              disabled={
+                isEditing ||
+                saving
+              }
+            >
+              Volver a registros
+            </Button>
+          </ButtonGroup>
+        )}
 
 
         {/* Layout de ficha */}
@@ -2346,6 +2407,7 @@ export default function DynamicTab({
             }
             disabled={
               isNewRecord ||
+              isNavigationDetached ||
               isEditing ||
               saving ||
               viewMode === "form"
@@ -2360,6 +2422,7 @@ export default function DynamicTab({
             }
             disabled={
               isNewRecord ||
+              isNavigationDetached ||
               isEditing ||
               saving ||
               viewMode === "grid"
@@ -2374,6 +2437,7 @@ export default function DynamicTab({
             }
             disabled={
               isNewRecord ||
+              isNavigationDetached ||
               isEditing ||
               saving ||
               viewMode === "list"
@@ -2421,6 +2485,7 @@ export default function DynamicTab({
                 setFailedCalloutField(null);
                 setSaveError(null);
                 setIsNewRecord(false);
+                setIsNavigationDetached(false);
               }}
               disabled={saving}
             >
@@ -2480,7 +2545,11 @@ export default function DynamicTab({
             : isNewRecord
             ? "Nuevo registro"
             : isEditing
-            ? `Editando registro ${page} de ${totalCount}`
+            ? isNavigationDetached
+              ? "Editando registro recién creado"
+              : `Editando registro ${page} de ${totalCount}`
+            : isNavigationDetached
+            ? "Registro recién creado"
             : totalCount > 0
             ? `Registro ${page} de ${totalCount}`
             : "Sin registros"}
