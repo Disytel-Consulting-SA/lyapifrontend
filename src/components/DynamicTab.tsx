@@ -2362,6 +2362,8 @@ export default function DynamicTab({
                  * la primera página. La posición anterior puede haber
                  * dejado de ser válida después del alta.
                  */
+                setSaveMessage(null);
+                setSaveError(null);
                 setPage(1);
                 setIsNavigationDetached(false);
               }}
