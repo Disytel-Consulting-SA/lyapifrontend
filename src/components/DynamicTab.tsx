@@ -2357,10 +2357,13 @@ export default function DynamicTab({
           >
             <Button
               onClick={() => {
+                /*
+                 * Al volver al conjunto navegable comenzamos desde
+                 * la primera página. La posición anterior puede haber
+                 * dejado de ser válida después del alta.
+                 */
+                setPage(1);
                 setIsNavigationDetached(false);
-                setRefreshToken(
-                  (current) => current + 1
-                );
               }}
               disabled={
                 isEditing ||
