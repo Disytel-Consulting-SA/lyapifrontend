@@ -664,7 +664,26 @@ export async function getRecordByKey(
     );
   }
 
-  return response.json();
+  const body = await response.json();
+
+  /*
+   * Algunos endpoints de documentos devuelven el registro
+   * envuelto en { header: {...} }. DynamicTab necesita siempre
+   * el objeto que contiene directamente las columnas.
+   */
+  if (
+    body &&
+    typeof body === "object" &&
+    !Array.isArray(body) &&
+    "header" in body &&
+    body.header &&
+    typeof body.header === "object" &&
+    !Array.isArray(body.header)
+  ) {
+    return body.header as Record<string, unknown>;
+  }
+
+  return body as Record<string, unknown>;
 }
 
 
