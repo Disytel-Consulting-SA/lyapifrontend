@@ -1,3 +1,7 @@
+import type { DynamicField, DynamicFieldReference, DynamicFieldReferenceValue } from "./dynamicField";
+
+export type { DynamicField, DynamicFieldReference, DynamicFieldReferenceValue } from "./dynamicField";
+
 export interface WindowOption {
   ad_window_id: number;
   name: string;
@@ -70,54 +74,22 @@ export interface WindowSchemaTab {
  *
  * Combina información proveniente de AD_Field y AD_Column.
  */
-export interface WindowSchemaField {
+export interface WindowSchemaField extends DynamicField {
   ad_field_id: number;
-
-  name: string;
-  description?: string;
 
   seqno: number;
   isdisplayed: boolean;
   isdisplayedingrid: boolean;
-  isreadonly: boolean;
-  issameline: boolean;
   fieldgroup?: string;
 
   ad_column_id: number;
-  columnname: string;
-
-  ad_reference_id: number;
-  ad_reference_value_id: number;
-
-  ismandatory: boolean;
   isencrypted: boolean;
   iskey: boolean;
   isparent: boolean;
   isselectioncolumn: boolean;
-  has_callout?: boolean;
-
-  /**
-   * Valor inicial efectivo para la creación de
-   * un nuevo registro.
-   *
-   * Si la propiedad no está presente, el field
-   * no posee un default aplicable.
-   */
-  defaultvalue?: string;
-
-  reference?: WindowSchemaReference;
 }
 
 
-export interface WindowSchemaReferenceValue {
-  value: string;
-  name: string;
-}
+export type WindowSchemaReferenceValue = DynamicFieldReferenceValue;
 
-
-export interface WindowSchemaReference {
-  type: string;
-  button_type?: string;
-  values?: WindowSchemaReferenceValue[];
-  endpoint?: string;
-}
+export type WindowSchemaReference = DynamicFieldReference;

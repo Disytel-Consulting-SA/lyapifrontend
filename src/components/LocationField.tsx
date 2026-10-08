@@ -20,9 +20,7 @@ import type {
   Location,
 } from "../api/libertyaApi";
 
-import type {
-  WindowSchemaField,
-} from "../types/metadata";
+import type { DynamicField } from "../types/dynamicField";
 
 import LocationDialog
   from "./LocationDialog";
@@ -34,7 +32,7 @@ import { getFieldStateSx } from "../styles/fieldStateStyles";
 
 
 interface Props {
-  field: WindowSchemaField;
+  field: DynamicField;
   rawValue: unknown;
   editable: boolean;
 

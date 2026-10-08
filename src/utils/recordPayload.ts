@@ -3,6 +3,7 @@ import type {
   WindowSchemaTab,
 } from "../types/metadata";
 import type { WindowRecordFieldState } from "../api/libertyaApi";
+import { normalizeDynamicFieldValue } from "./dynamicFieldValue";
 
 
 /*
@@ -42,145 +43,6 @@ function isEmptyValue(
 
 
   return false;
-}
-
-
-function normalizeBoolean(
-  value: unknown
-): boolean {
-
-  if (typeof value === "boolean") {
-    return value;
-  }
-
-
-  const normalized =
-    String(value)
-      .trim()
-      .toLowerCase();
-
-
-  return (
-    normalized === "y" ||
-    normalized === "true" ||
-    normalized === "1"
-  );
-}
-
-
-function normalizeInteger(
-  field: WindowSchemaField,
-  value: unknown
-): number {
-
-  const normalized =
-    Number(value);
-
-
-  if (
-    !Number.isFinite(normalized) ||
-    !Number.isInteger(normalized)
-  ) {
-
-    throw new Error(
-      `${field.name}: "${String(value)}" no es un entero válido`
-    );
-  }
-
-
-  return normalized;
-}
-
-
-function normalizeNumber(
-  field: WindowSchemaField,
-  value: unknown
-): number {
-
-  const normalized =
-    Number(value);
-
-
-  if (!Number.isFinite(normalized)) {
-
-    throw new Error(
-      `${field.name}: "${String(value)}" no es un número válido`
-    );
-  }
-
-
-  return normalized;
-}
-
-
-function normalizeFieldValue(
-  field: WindowSchemaField,
-  value: unknown
-): unknown {
-
-  const type =
-    field.reference?.type;
-
-
-  if (type === "boolean") {
-
-    return normalizeBoolean(
-      value
-    );
-  }
-
-
-  if (type === "integer") {
-
-    return normalizeInteger(
-      field,
-      value
-    );
-  }
-
-
-  if (
-    type === "number" ||
-    type === "amount" ||
-    type === "quantity" ||
-    type === "costprice"
-  ) {
-
-    return normalizeNumber(
-      field,
-      value
-    );
-  }
-
-
-  /*
-   * Las referencias Table / Table Direct /
-   * Search que terminan en _ID representan
-   * identificadores numéricos.
-   */
-  if (
-    (
-      type === "lookup" ||
-      type === "search"
-    ) &&
-    field.columnname
-      .toUpperCase()
-      .endsWith("_ID")
-  ) {
-
-    return normalizeInteger(
-      field,
-      value
-    );
-  }
-
-
-  /*
-   * List, text, textarea, fechas y cualquier
-   * otro tipo textual conservan representación
-   * String conforme al contrato OpenAPI actual.
-   */
-  return String(value);
 }
 
 
@@ -254,7 +116,7 @@ export function buildCreatePayload(
 
 
     payload[columnName] =
-      normalizeFieldValue(
+      normalizeDynamicFieldValue(
         field,
         value
       );
@@ -377,7 +239,7 @@ export function buildUpdatePayload(
       return;
     }
 
-    payload[columnName] = normalizeFieldValue(field, value);
+    payload[columnName] = normalizeDynamicFieldValue(field, value);
   });
 
   return payload;
