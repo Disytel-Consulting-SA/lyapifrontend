@@ -12,7 +12,8 @@ import {
   Tooltip,
 } from "@mui/material";
 
-import WindowSelector from "./components/WindowSelector";
+import MenuSelector from "./components/MenuSelector";
+import ProcessDialog from "./components/ProcessDialog";
 import RoleSelector from "./components/RoleSelector";
 import DynamicTab from "./components/DynamicTab";
 import Login from "./components/Login";
@@ -40,6 +41,7 @@ import {
 } from "./auth";
 
 import type {
+  MenuOption,
   WindowSchema,
   WindowSchemaTab,
 } from "./types/metadata";
@@ -58,8 +60,9 @@ function App() {
   const [roleId, setRoleId] =
     useState<number | "">(getRoleId() ?? "");
 
-  const [windowId, setWindowId] =
-    useState<number | "">("");
+  const [menuOption, setMenuOption] = useState<MenuOption | null>(null);
+  const [windowId, setWindowId] = useState<number | "">("");
+  const [menuProcessId, setMenuProcessId] = useState<number | null>(null);
 
   const [windowSchema, setWindowSchema] =
     useState<WindowSchema | null>(null);
@@ -92,6 +95,8 @@ function App() {
       clearRole();
 
       setRoleId("");
+      setMenuOption(null);
+      setMenuProcessId(null);
       setWindowId("");
       setWindowSchema(null);
       setActiveTab(0);
@@ -193,7 +198,9 @@ function App() {
           clearRole();
 
           setRoleId("");
-          setWindowId("");
+          setMenuOption(null);
+      setMenuProcessId(null);
+      setWindowId("");
           setWindowSchema(null);
           setActiveTab(0);
           setCurrentRecords({});
@@ -260,6 +267,8 @@ function App() {
       );
 
       setRoleId(role.ad_role_id);
+      setMenuOption(null);
+      setMenuProcessId(null);
       setWindowId("");
       setWindowSchema(null);
       setActiveTab(0);
@@ -278,7 +287,9 @@ function App() {
     clearSession();
 
     setRoleId("");
-    setWindowId("");
+    setMenuOption(null);
+      setMenuProcessId(null);
+      setWindowId("");
     setWindowSchema(null);
     setActiveTab(0);
     setCurrentRecords({});
@@ -476,10 +487,26 @@ function App() {
 
             {roleId !== "" && (
               <Box sx={{ marginTop: 1.5 }}>
-                <WindowSelector
+                <MenuSelector
                   key={roleId}
-                  value={windowId}
-                  onChange={setWindowId}
+                  value={menuOption}
+                  onChange={(option) => {
+                    setMenuOption(option);
+                    setWindowSchema(null);
+                    setActiveTab(0);
+                    setCurrentRecords({});
+
+                    if (option?.type === "window") {
+                      setMenuProcessId(null);
+                      setWindowId(option.target_id);
+                    } else if (option?.type === "process") {
+                      setWindowId("");
+                      setMenuProcessId(option.target_id);
+                    } else {
+                      setWindowId("");
+                      setMenuProcessId(null);
+                    }
+                  }}
                 />
               </Box>
             )}
@@ -661,12 +688,23 @@ function App() {
             <Typography
               color="text.secondary"
             >
-              Seleccionar un perfil y ventana para comenzar
+              Seleccionar un perfil y una opción de menú para comenzar
             </Typography>
           </Box>
         )}
 
       </Box>
+
+      {menuProcessId !== null && (
+        <ProcessDialog
+          open
+          processId={menuProcessId}
+          onClose={() => {
+            setMenuProcessId(null);
+            setMenuOption(null);
+          }}
+        />
+      )}
 
     </Box>
   );
