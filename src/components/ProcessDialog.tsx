@@ -86,7 +86,7 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
   async function runProcess() {
     if (!schema) return;
 
-    const missingRequired = schema.parameters.some((parameter) => {
+    const missingRequired = (schema.parameters ?? []).some((parameter) => {
       const state = states[parameter.columnname];
       return state?.displayed !== false && parameter.ismandatory && (values[parameter.columnname] ?? "") === "";
     });
