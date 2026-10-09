@@ -37,3 +37,16 @@ export interface ProcessStateRequest {
   values?: Record<string, string>;
   changed_parameters?: string[];
 }
+
+export interface ProcessExecuteRequest {
+  table?: string;
+  record_id?: number;
+  values?: Record<string, string>;
+  values_to?: Record<string, string>;
+}
+
+export interface ProcessExecuteResponse {
+  process_instance_id: number;
+  success: boolean;
+  summary?: string | null;
+}

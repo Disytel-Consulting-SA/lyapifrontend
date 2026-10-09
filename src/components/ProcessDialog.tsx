@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, TextField, Typography } from "@mui/material";
-import { evaluateProcessState, getProcessSchema } from "../api/libertyaApi";
+import { evaluateProcessState, executeProcess, getProcessSchema } from "../api/libertyaApi";
 import type { ProcessParameterState, ProcessSchema, ProcessSchemaParameter } from "../types/process";
 import LookupField from "./LookupField";
 import SearchField from "./SearchField";
@@ -20,6 +20,8 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
   const [loading, setLoading] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [executing, setExecuting] = useState(false);
+  const [result, setResult] = useState<{ success: boolean; summary?: string | null } | null>(null);
 
   const contextValues = useMemo(() => values, [values]);
 
@@ -31,6 +33,7 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
     setSchema(null);
     setValues({});
     setStates({});
+    setResult(null);
 
     Promise.all([
       getProcessSchema(processId),
@@ -77,6 +80,37 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setEvaluating(false);
+    }
+  }
+
+  async function runProcess() {
+    if (!schema) return;
+
+    const missingRequired = schema.parameters.some((parameter) => {
+      const state = states[parameter.columnname];
+      return state?.displayed !== false && parameter.ismandatory && (values[parameter.columnname] ?? "") === "";
+    });
+    if (missingRequired) {
+      setError("Complete los parámetros obligatorios antes de ejecutar el proceso.");
+      return;
+    }
+
+    setExecuting(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const response = await executeProcess(processId, {
+        table: tableName,
+        record_id: recordId === undefined ? undefined : Number(recordId),
+        values,
+      });
+      setResult({ success: response.success, summary: response.summary });
+      if (!response.success) setError(response.summary || "El proceso finalizó con error.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setExecuting(false);
     }
   }
 
@@ -141,13 +175,14 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
       <DialogContent>
         {loading && <Box sx={{ display: "flex", justifyContent: "center", padding: 3 }}><CircularProgress size={28} /></Box>}
         {error && <Alert severity="error" sx={{ marginY: 1 }}>{error}</Alert>}
+        {result?.success && <Alert severity="success" sx={{ marginY: 1 }}>{result.summary || "Proceso ejecutado correctamente."}</Alert>}
         {!loading && schema?.description && <Typography variant="body2" sx={{ marginBottom: 1 }}>{schema.description}</Typography>}
         {!loading && schema?.parameters?.sort((a, b) => (a.seqno ?? 0) - (b.seqno ?? 0)).map(renderParameter)}
         {evaluating && <Typography variant="caption">Actualizando parámetros...</Typography>}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={evaluating}>Cancelar</Button>
-        <Button variant="contained" disabled>Ejecutar</Button>
+        <Button onClick={onClose} disabled={evaluating || executing}>{result?.success ? "Cerrar" : "Cancelar"}</Button>
+        {!result?.success && <Button variant="contained" disabled={loading || evaluating || executing || !schema} onClick={() => void runProcess()}>{executing ? "Ejecutando..." : "Ejecutar"}</Button>}
       </DialogActions>
     </Dialog>
   );

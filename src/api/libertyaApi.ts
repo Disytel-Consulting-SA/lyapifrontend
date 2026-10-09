@@ -2,7 +2,7 @@ import type {
   WindowOption,
   WindowSchema,
 } from "../types/metadata";
-import type { ProcessSchema, ProcessState, ProcessStateRequest } from "../types/process";
+import type { ProcessExecuteRequest, ProcessExecuteResponse, ProcessSchema, ProcessState, ProcessStateRequest } from "../types/process";
 
 import {
   expireSession,
@@ -1108,6 +1108,23 @@ export async function evaluateProcessState(processId: number, request: ProcessSt
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(detail ? `Error evaluando proceso: ${detail}` : `Error evaluando proceso ${processId}: ${response.status}`);
+  }
+  return response.json();
+}
+
+
+/**
+ * Ejecuta un proceso mediante el pipeline canonico de Libertya CORE.
+ */
+export async function executeProcess(processId: number, request: ProcessExecuteRequest): Promise<ProcessExecuteResponse> {
+  const response = await authenticatedFetch(`${BASE_URL}/v1.0/processes/${processId}/execute`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail ? `Error ejecutando proceso: ${detail}` : `Error ejecutando proceso ${processId}: ${response.status}`);
   }
   return response.json();
 }
