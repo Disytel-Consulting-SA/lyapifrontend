@@ -2,6 +2,7 @@ import type {
   WindowOption,
   WindowSchema,
 } from "../types/metadata";
+import type { ProcessSchema, ProcessState, ProcessStateRequest } from "../types/process";
 
 import {
   expireSession,
@@ -1084,4 +1085,29 @@ export async function processDocument(
   }
 
   return response.text();
+}
+
+/**
+ * Recupera la metadata declarativa de los parametros de un proceso.
+ */
+export async function getProcessSchema(processId: number): Promise<ProcessSchema> {
+  const response = await authenticatedFetch(`${BASE_URL}/v1.0/processes/${processId}/schema`);
+  if (!response.ok) throw new Error(`Error recuperando schema del proceso ${processId}: ${response.status}`);
+  return response.json();
+}
+
+/**
+ * Construye o reevalua el estado efectivo de los parametros de un proceso.
+ */
+export async function evaluateProcessState(processId: number, request: ProcessStateRequest): Promise<ProcessState> {
+  const response = await authenticatedFetch(`${BASE_URL}/v1.0/processes/${processId}/state`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail ? `Error evaluando proceso: ${detail}` : `Error evaluando proceso ${processId}: ${response.status}`);
+  }
+  return response.json();
 }
