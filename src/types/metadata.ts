@@ -2,6 +2,13 @@ import type { DynamicField, DynamicFieldReference, DynamicFieldReferenceValue } 
 
 export type { DynamicField, DynamicFieldReference, DynamicFieldReferenceValue } from "./dynamicField";
 
+export interface MenuOption {
+  ad_menu_id: number;
+  name: string;
+  type: "window" | "process";
+  target_id: number;
+}
+
 export interface WindowOption {
   ad_window_id: number;
   name: string;

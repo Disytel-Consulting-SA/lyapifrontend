@@ -1,4 +1,5 @@
 import type {
+  MenuOption,
   WindowOption,
   WindowSchema,
 } from "../types/metadata";
@@ -345,6 +346,13 @@ async function authenticatedFetch(
   return response;
 }
 
+
+/** Recupera las entradas de menu disponibles para el perfil actual. */
+export async function getMenuOptions(): Promise<MenuOption[]> {
+  const response = await authenticatedFetch(`${BASE_URL}/v1.0/menu/options`);
+  if (!response.ok) throw new Error(`Error recuperando menu: ${response.status}`);
+  return response.json();
+}
 
 /**
  * Recupera la lista de ventanas para el selector.

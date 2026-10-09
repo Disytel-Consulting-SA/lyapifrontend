@@ -8,7 +8,7 @@ import SearchField from "./SearchField";
 interface Props {
   open: boolean;
   processId: number;
-  tableName: string;
+  tableName?: string;
   recordId?: string | number;
   onClose: () => void;
 }
