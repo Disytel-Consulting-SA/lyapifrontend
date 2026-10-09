@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Autocomplete, TextField } from "@mui/material";
+import { Autocomplete, Box, ListItemIcon, ListItemText, TextField } from "@mui/material";
+import { DescriptionOutlined, WindowOutlined } from "@mui/icons-material";
 import { getMenuOptions } from "../api/libertyaApi";
 import type { MenuOption } from "../types/metadata";
 
@@ -34,6 +35,14 @@ export default function MenuSelector({ value, onChange }: Props) {
       getOptionLabel={(option) => option.name}
       isOptionEqualToValue={(option, current) => option.ad_menu_id === current.ad_menu_id}
       onChange={(_, option) => onChange(option)}
+      renderOption={(props, option) => (
+        <Box component="li" {...props}>
+          <ListItemIcon sx={{ minWidth: 34 }}>
+            {option.type === "window" ? <WindowOutlined fontSize="small" /> : <DescriptionOutlined fontSize="small" />}
+          </ListItemIcon>
+          <ListItemText primary={option.name} secondary={option.type === "window" ? "Ventana" : "Proceso"} />
+        </Box>
+      )}
       renderInput={(params) => <TextField {...params} label="Menú" />}
     />
   );
