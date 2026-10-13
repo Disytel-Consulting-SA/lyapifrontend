@@ -283,6 +283,23 @@ function App() {
   }
 
 
+  function handleCloseWindow() {
+    /*
+     * Cerrar una ventana elimina todo el estado asociado a ella.
+     * DynamicTab se desmonta y ejecuta los cleanup de sus efectos.
+     * La misma función se usa desde el botón Cerrar y desde la X
+     * del selector de menú.
+     */
+    setMenuOption(null);
+    setMenuProcessId(null);
+    setWindowId("");
+    setWindowSchema(null);
+    setActiveTab(0);
+    setCurrentRecords({});
+    setCurrentPages({});
+  }
+
+
   function handleLogout() {
     clearSession();
 
@@ -491,20 +508,23 @@ function App() {
                   key={roleId}
                   value={menuOption}
                   onChange={(option) => {
+                    if (option === null) {
+                      handleCloseWindow();
+                      return;
+                    }
+
                     setMenuOption(option);
                     setWindowSchema(null);
                     setActiveTab(0);
                     setCurrentRecords({});
+                    setCurrentPages({});
 
-                    if (option?.type === "window") {
+                    if (option.type === "window") {
                       setMenuProcessId(null);
                       setWindowId(option.target_id);
-                    } else if (option?.type === "process") {
+                    } else if (option.type === "process") {
                       setWindowId("");
                       setMenuProcessId(option.target_id);
-                    } else {
-                      setWindowId("");
-                      setMenuProcessId(null);
                     }
                   }}
                 />
@@ -675,6 +695,7 @@ function App() {
             initialPage={currentPages[selectedTab.ad_tab_id] ?? 1}
             onPageChange={handlePageChange}
             onRecordChange={handleRecordChange}
+            onCloseWindow={handleCloseWindow}
           />
         ) : (
           <Box
