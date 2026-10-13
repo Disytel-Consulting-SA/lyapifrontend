@@ -2039,19 +2039,29 @@ export default function DynamicTab({
   ]);
 
 
+  const previousParentRecordRef =
+    useRef(parentRecord);
+
   useEffect(() => {
     /*
-     * Si cambia el registro padre mientras la detail permanece montada,
-     * su navegación comienza nuevamente en el primer registro.
+     * Reiniciar una detail solamente cuando cambia realmente su padre
+     * mientras la misma pestaña permanece montada.
      *
-     * No se ejecuta al montar: initialPage ya inicializó useState(page)
-     * con la posición que App conserva para esta pestaña.
+     * useEffect se ejecuta también en el montaje inicial. En ese caso
+     * debemos conservar initialPage, que contiene la posición guardada
+     * por App al volver desde una pestaña hija.
      */
-    if (tab.parent_ad_tab_id !== undefined) {
+    if (
+      tab.parent_ad_tab_id !== undefined &&
+      previousParentRecordRef.current !== parentRecord
+    ) {
       setPage(1);
     }
+
+    previousParentRecordRef.current = parentRecord;
   }, [
     parentRecord,
+    tab.parent_ad_tab_id,
   ]);
 
 
