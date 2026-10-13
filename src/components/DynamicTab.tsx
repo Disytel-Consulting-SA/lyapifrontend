@@ -2225,6 +2225,31 @@ export default function DynamicTab({
         </Typography>
       </Tooltip>
 
+      {tab.data_endpoint && (
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ display: "inline", ml: 1 }}
+        >
+          {"— "}
+          {viewMode === "grid"
+            ? `Grilla — ${totalCount} registros`
+            : viewMode === "list"
+            ? `Lista — ${totalCount} registros`
+            : isNewRecord
+            ? "Nuevo registro"
+            : isEditing
+            ? isNavigationDetached
+              ? "Editando registro recién creado"
+              : `Editando registro ${page} de ${totalCount}`
+            : isNavigationDetached
+            ? "Registro recién creado"
+            : totalCount > 0
+            ? `Registro ${page} de ${totalCount}`
+            : "Sin registros"}
+        </Typography>
+      )}
+
         {tab.isreadonly && (
           <Alert
             severity="info"
@@ -2632,35 +2657,18 @@ export default function DynamicTab({
       </Box>
 
 
-      {/* ESTADO DE NAVEGACIÓN */}
-      <Box
-        sx={{
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 1,
-          marginBottom: 2,
-        }}
-      >
-        <Typography variant="body2">
-          {viewMode === "grid"
-            ? `Grilla — ${totalCount} registros`
-            : viewMode === "list"
-            ? `Lista — ${totalCount} registros`
-            : isNewRecord
-            ? "Nuevo registro"
-            : isEditing
-            ? isNavigationDetached
-              ? "Editando registro recién creado"
-              : `Editando registro ${page} de ${totalCount}`
-            : isNavigationDetached
-            ? "Registro recién creado"
-            : totalCount > 0
-            ? `Registro ${page} de ${totalCount}`
-            : "Sin registros"}
-        </Typography>
-
+      {/* INDICADORES DE ESTADO */}
+      {((isNewRecord || isEditing) && calloutPending || searchFilter) && (
+        <Box
+          sx={{
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 1,
+            marginBottom: 2,
+          }}
+        >
         {(isNewRecord || isEditing) && (
           <Box
             role={
@@ -2692,8 +2700,8 @@ export default function DynamicTab({
             Búsqueda activa
           </Typography>
         )}
-      </Box>
-
+        </Box>
+      )}
 
       {/* MENSAJES CRUD */}
           <Box
