@@ -2192,6 +2192,7 @@ export default function DynamicTab({
       <Box
         sx={{
           flexShrink: 0,
+          paddingLeft: 4,
         }}
       >
       <Tooltip
