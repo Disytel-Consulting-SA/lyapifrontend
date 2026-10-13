@@ -36,7 +36,11 @@ export default function MenuSelector({ value, onChange }: Props) {
       isOptionEqualToValue={(option, current) => option.ad_menu_id === current.ad_menu_id}
       onChange={(_, option) => onChange(option)}
       renderOption={(props, option) => (
-        <Box component="li" {...props}>
+        <Box
+          component="li"
+          {...props}
+          key={option.ad_menu_id}
+        >
           <ListItemIcon sx={{ minWidth: 34 }}>
             {option.type === "window" ? <WindowOutlined fontSize="small" /> : <SettingsOutlined fontSize="small" />}
           </ListItemIcon>
