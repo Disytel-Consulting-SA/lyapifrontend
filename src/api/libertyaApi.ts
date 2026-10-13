@@ -1131,8 +1131,19 @@ export async function executeProcess(processId: number, request: ProcessExecuteR
     body: JSON.stringify(request),
   });
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail ? `Error ejecutando proceso: ${detail}` : `Error ejecutando proceso ${processId}: ${response.status}`);
+    /*
+     * La API devuelve ProcessExecuteResponse también para errores de
+     * ejecución controlados. El detalle técnico queda exclusivamente
+     * en el log del backend.
+     */
+    try {
+      const detail = await response.json() as ProcessExecuteResponse;
+      if (detail.summary) throw new Error(detail.summary);
+    } catch (error) {
+      if (error instanceof Error && error.message) throw error;
+    }
+
+    throw new Error("No fue posible ejecutar el proceso.");
   }
   return response.json();
 }
