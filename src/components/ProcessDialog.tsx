@@ -106,12 +106,23 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
         values,
       });
       setResult({ success: response.success, summary: response.summary });
-      if (!response.success) setError(response.summary || "El proceso finalizó con error.");
+      if (!response.success) setError(formatProcessSummary(response.summary) || "El proceso finalizó con error.");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setExecuting(false);
     }
+  }
+
+  function formatProcessSummary(summary?: string | null) {
+    if (!summary) return summary;
+
+    /*
+     * CORE utiliza <br> en varios resúmenes históricos. El diálogo no
+     * renderiza HTML deliberadamente; sólo convertimos los separadores
+     * conocidos a saltos de línea.
+     */
+    return summary.replace(/<br\s*\/?>/gi, "\n");
   }
 
   function renderParameter(parameter: ProcessSchemaParameter) {
@@ -175,7 +186,7 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
       <DialogContent>
         {loading && <Box sx={{ display: "flex", justifyContent: "center", padding: 3 }}><CircularProgress size={28} /></Box>}
         {error && <Alert severity="error" sx={{ marginY: 1 }}>{error}</Alert>}
-        {result?.success && <Alert severity="success" sx={{ marginY: 1 }}>{result.summary || "Proceso ejecutado correctamente."}</Alert>}
+        {result?.success && <Alert severity="success" sx={{ marginY: 1 }}>{formatProcessSummary(result.summary) || "Proceso ejecutado correctamente."}</Alert>}
         {!loading && schema?.description && <Typography variant="body2" sx={{ marginBottom: 1 }}>{schema.description}</Typography>}
         {!loading && schema?.parameters?.sort((a, b) => (a.seqno ?? 0) - (b.seqno ?? 0)).map(renderParameter)}
         {evaluating && <Typography variant="caption">Actualizando parámetros...</Typography>}
