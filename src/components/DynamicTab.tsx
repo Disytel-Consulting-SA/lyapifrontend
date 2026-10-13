@@ -1504,6 +1504,66 @@ export default function DynamicTab({
     return groups;
   }
 
+  /*
+   * Accesos rápidos: los botones de la pestaña activa y las acciones
+   * del documento padre cuando estamos en una subpestaña.
+   * Los controles originales del formulario permanecen intactos.
+   */
+  const activeButtons = tab.fields
+    .filter((field) => field.reference?.type === "button" && isFieldDisplayed(field))
+    .sort((a, b) => a.seqno - b.seqno);
+
+  const ownDocumentAction = activeButtons.find(
+    (field) => field.columnname.toLowerCase() === "docaction" &&
+      field.reference?.button_type === "document-action"
+  );
+
+  const parentDocumentAction = parentTab?.fields.find(
+    (field) => field.columnname.toLowerCase() === "docaction" &&
+      field.reference?.button_type === "document-action" &&
+      field.isdisplayed !== false && field.isencrypted !== true
+  );
+
+  const documentTab = ownDocumentAction ? tab : parentDocumentAction ? parentTab : undefined;
+  const documentRecord = ownDocumentAction ? record : parentRecord;
+  const documentActionField = ownDocumentAction ?? parentDocumentAction;
+  const documentIdField = documentTab?.fields.find((field) => field.iskey);
+  const documentIdValue = documentIdField && documentRecord
+    ? documentRecord[documentIdField.columnname.toLowerCase()]
+    : undefined;
+  const documentRecordId =
+    typeof documentIdValue === "string" || typeof documentIdValue === "number"
+      ? documentIdValue
+      : undefined;
+  const docStatusField = documentTab?.fields.find(
+    (field) => field.columnname.toLowerCase() === "docstatus"
+  );
+  const docStatusValue = docStatusField && documentRecord
+    ? documentRecord[docStatusField.columnname.toLowerCase()]
+    : undefined;
+  const docStatusLabel = docStatusField?.reference?.values?.find(
+    (value) => value.value === String(docStatusValue)
+  )?.name ?? (docStatusValue == null ? "—" : String(docStatusValue));
+
+  async function handleQuickActionProcessed() {
+    setRefreshToken((current) => current + 1);
+    if (!documentTab?.data_endpoint || documentRecordId === undefined) return;
+    try {
+      const updated = await getRecordByKey(documentTab.data_endpoint, [documentRecordId]);
+      if (updated) {
+        onRecordChange(documentTab.ad_tab_id, updated);
+        if (documentTab.ad_tab_id === tab.ad_tab_id) {
+          setRecord(updated);
+          recordRef.current = updated;
+          await reevaluateRecordState(updated);
+        }
+      }
+    } catch (error) {
+      console.error("No se pudo actualizar el estado del documento procesado", error);
+      setSaveError("El documento fue procesado, pero no se pudo actualizar su estado en pantalla.");
+    }
+  }
+
   const formLayout = buildFormLayout();
 
 
@@ -2641,6 +2701,49 @@ export default function DynamicTab({
           </ButtonGroup>
         )}
 
+
+        {/* Accesos rápidos a campos Button y acciones del documento */}
+        {viewMode === "form" && (documentActionField || activeButtons.length > 0) && (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, alignItems: "center" }}>
+            {documentActionField && documentTab && (
+              <>
+                {docStatusField && documentRecordId !== undefined && (
+                  <Tooltip title={docStatusField.name}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ px: 1, whiteSpace: "nowrap" }}
+                    >
+                      {docStatusField.name}: {docStatusLabel}
+                    </Typography>
+                  </Tooltip>
+                )}
+                <ButtonField
+                  key={`documento-${documentTab.ad_tab_id}-${documentRecordId ?? "nuevo"}`}
+                  compact
+                  field={documentActionField}
+                  tableName={documentTab.tablename}
+                  recordId={documentRecordId}
+                  disabled={isNewRecord || isEditing || saving || calloutPending || documentRecordId === undefined}
+                  onProcessed={() => void handleQuickActionProcessed()}
+                />
+              </>
+            )}
+            {activeButtons
+              .filter((field) => field !== ownDocumentAction)
+              .map((field) => (
+                <ButtonField
+                  key={field.ad_field_id}
+                  compact
+                  field={field}
+                  tableName={tab.tablename}
+                  recordId={getDocumentRecordId()}
+                  disabled={isNewRecord || isEditing || saving || calloutPending}
+                  onProcessed={() => setRefreshToken((current) => current + 1)}
+                />
+              ))}
+          </Box>
+        )}
 
         {/* Ventana */}
         <ButtonGroup
