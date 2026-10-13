@@ -79,6 +79,7 @@ interface Props {
   ) => void;
 
   onPageChange: (tabId: number, page: number) => void;
+  onCloseWindow: () => void;
 }
 
 
@@ -139,6 +140,7 @@ export default function DynamicTab({
   initialPage,
   onPageChange,
   onRecordChange,
+  onCloseWindow,
 }: Props) {
 
   const [record, setRecord] = useState<Record<string, unknown>>({});
@@ -2612,6 +2614,20 @@ export default function DynamicTab({
             </Button>
           </ButtonGroup>
         )}
+
+
+        {/* Ventana */}
+        <ButtonGroup
+          variant="outlined"
+          size="small"
+        >
+          <Button
+            onClick={onCloseWindow}
+            disabled={saving}
+          >
+            Cerrar
+          </Button>
+        </ButtonGroup>
 
       </Box>
 
