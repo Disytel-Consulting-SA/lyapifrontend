@@ -2037,26 +2037,22 @@ export default function DynamicTab({
     setViewMode("form");
 
     /*
-     * Al cambiar de pestaña restauramos la página que App conserva
-     * para esa AD_Tab. Si cambia el registro padre, una detail sí
-     * debe comenzar nuevamente desde su primera página.
+     * El cambio de pestaña debe restaurar la posición conservada por
+     * App. El cambio de registro padre reinicia una detail en página 1.
      *
-     * Antes ambos casos quedaban mezclados: al volver a una pestaña
-     * hija se forzaba page=1 y se sobrescribía la posición guardada.
+     * initialPage NO forma parte de las dependencias: DynamicTab ya
+     * notifica cada cambio de page a App y, si reaccionáramos a ese
+     * mismo valor aquí, produciríamos un ciclo que vuelve a la página
+     * anterior inmediatamente después de navegar.
      */
     if (tab.parent_ad_tab_id !== undefined) {
-      setPage(
-        parentRecord === undefined
-          ? initialPage
-          : 1
-      );
+      setPage(1);
     } else {
       setPage(initialPage);
     }
   }, [
     tab.ad_tab_id,
     parentRecord,
-    initialPage,
   ]);
 
 
