@@ -2033,21 +2033,24 @@ export default function DynamicTab({
     setIsEditing(false);
     setIsNavigationDetached(false);
     setOriginalRecord(null);
-
     setViewMode("form");
-
-    /*
-     * DynamicTab se remonta al cambiar de pestaña (key=AD_Tab_ID), por
-     * lo que initialPage ya contiene la posición conservada por App.
-     * Restaurarla aquí evita perder la posición de una pestaña detail
-     * al volver desde un nivel inferior.
-     *
-     * Cuando cambia realmente parentRecord dentro de la misma instancia
-     * seguimos reiniciando la detail a página 1.
-     */
-    setPage(initialPage);
   }, [
     tab.ad_tab_id,
+  ]);
+
+
+  useEffect(() => {
+    /*
+     * Si cambia el registro padre mientras la detail permanece montada,
+     * su navegación comienza nuevamente en el primer registro.
+     *
+     * No se ejecuta al montar: initialPage ya inicializó useState(page)
+     * con la posición que App conserva para esta pestaña.
+     */
+    if (tab.parent_ad_tab_id !== undefined) {
+      setPage(1);
+    }
+  }, [
     parentRecord,
   ]);
 
