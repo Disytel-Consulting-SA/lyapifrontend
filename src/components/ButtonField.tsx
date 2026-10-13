@@ -9,6 +9,7 @@ interface ButtonFieldProps {
   recordId?: string | number;
   disabled?: boolean;
   onProcessed: () => void;
+  compact?: boolean;
 }
 
 export default function ButtonField({
@@ -17,13 +18,14 @@ export default function ButtonField({
   recordId,
   disabled = false,
   onProcessed,
+  compact = false,
 }: ButtonFieldProps) {
 
   const buttonType = field.reference?.button_type;
 
   if (buttonType === "document-action" && recordId !== undefined) {
     return (
-      <Box sx={{ marginTop: 2, marginBottom: 1 }}>
+      <Box sx={compact ? { display: "inline-flex" } : { marginTop: 2, marginBottom: 1 }}>
         <DocumentActionButton
           tableName={tableName}
           recordId={recordId}
@@ -36,14 +38,14 @@ export default function ButtonField({
 
   if (buttonType === "process" && field.reference?.process_id !== undefined) {
     return (
-      <Box sx={{ marginTop: 2, marginBottom: 1 }}>
+      <Box sx={compact ? { display: "inline-flex" } : { marginTop: 2, marginBottom: 1 }}>
         <ProcessButton processId={field.reference.process_id} label={field.name} tableName={tableName} recordId={recordId} disabled={disabled} />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ marginTop: 2, marginBottom: 1 }}>
+    <Box sx={compact ? { display: "inline-flex" } : { marginTop: 2, marginBottom: 1 }}>
       <Button variant="contained" size="small" disabled>
         {field.name}
       </Button>
