@@ -2344,7 +2344,7 @@ export default function DynamicTab({
         sx={{
           flexShrink: 0,
           marginTop: 1,
-          marginBottom: 2,
+          marginBottom: (documentActionField || activeButtons.length > 0) && viewMode === "form" ? 0.75 : 2,
 
           display: "flex",
           flexWrap: "wrap",
@@ -2702,9 +2702,25 @@ export default function DynamicTab({
         )}
 
 
+        {/* Ventana */}
+        <ButtonGroup
+          variant="outlined"
+          size="small"
+        >
+          <Button
+            onClick={onCloseWindow}
+            disabled={saving}
+          >
+            Cerrar
+          </Button>
+        </ButtonGroup>
+
+      </Box>
+
+      {/* Acciones específicas de la pestaña, siempre en su propia línea */}
         {/* Accesos rápidos a campos Button y acciones del documento */}
         {viewMode === "form" && (documentActionField || activeButtons.length > 0) && (
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, alignItems: "center" }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, alignItems: "center", marginBottom: 2 }}>
             {documentActionField && documentTab && (
               <>
                 {docStatusField && documentRecordId !== undefined && (
@@ -2714,7 +2730,7 @@ export default function DynamicTab({
                       color="text.secondary"
                       sx={{ px: 1, whiteSpace: "nowrap" }}
                     >
-                      {docStatusField.name}: {docStatusLabel}
+                      {docStatusLabel}
                     </Typography>
                   </Tooltip>
                 )}
@@ -2744,21 +2760,6 @@ export default function DynamicTab({
               ))}
           </Box>
         )}
-
-        {/* Ventana */}
-        <ButtonGroup
-          variant="outlined"
-          size="small"
-        >
-          <Button
-            onClick={onCloseWindow}
-            disabled={saving}
-          >
-            Cerrar
-          </Button>
-        </ButtonGroup>
-
-      </Box>
 
 
       {/* INDICADORES DE ESTADO */}
