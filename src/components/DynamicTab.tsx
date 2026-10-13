@@ -21,6 +21,7 @@ import {
   evaluateRecordState,
   executeTabFieldCallout,
   getTabRecords,
+  getRecord,
   getNewRecordState,
   getRecordByKey,
   updateRecord,
@@ -537,6 +538,52 @@ export default function DynamicTab({
 
     return Object.keys(values).length > 0
       ? values
+      : undefined;
+  }
+
+
+  /*
+   * Filtro utilizado cuando la pestaña debe navegar mediante su
+   * data_endpoint. Es necesario para tablas con clave compuesta,
+   * que todavía no son soportadas por /tabs/{id}/records.
+   */
+  function buildDataEndpointFilter(): string | undefined {
+    const filters: string[] = [];
+
+    if (
+      tab.parent_ad_tab_id !== undefined &&
+      parentTab &&
+      parentRecord &&
+      tab.link_columnname
+    ) {
+      const parentKeyField =
+        parentTab.fields.find(
+          (field) => field.iskey
+        );
+
+      if (parentKeyField) {
+        const parentValue =
+          parentRecord[
+            parentKeyField.columnname.toLowerCase()
+          ];
+
+        if (
+          parentValue !== undefined &&
+          parentValue !== null
+        ) {
+          filters.push(
+            `${tab.link_columnname}=${parentValue}`
+          );
+        }
+      }
+    }
+
+    if (searchFilter) {
+      filters.push(searchFilter);
+    }
+
+    return filters.length > 0
+      ? filters.join(" and ")
       : undefined;
   }
 
@@ -2026,13 +2073,33 @@ export default function DynamicTab({
       return;
     }
 
-    getTabRecords(tab.ad_tab_id, {
-      parent_values: parentValues,
-      filter: buildRecordFilter(),
-      limit: 1,
-      page,
-      include_total: true,
-    })
+    /*
+     * /tabs/{id}/records aporta la semántica completa de AD_Tab,
+     * pero actualmente requiere una clave simple numérica.
+     *
+     * Las tablas con clave compuesta (por ejemplo M_ProductPrice)
+     * continúan navegándose mediante su endpoint REST específico,
+     * como ocurría antes de incorporar la navegación contextual.
+     */
+    const recordRequest =
+      (tab.pk_columns?.length ?? 0) > 1
+        ? getRecord(
+            tab.data_endpoint,
+            page,
+            buildDataEndpointFilter()
+          ).then(({ record, totalCount }) => ({
+            records: record ? [record] : [],
+            totalCount,
+          }))
+        : getTabRecords(tab.ad_tab_id, {
+            parent_values: parentValues,
+            filter: buildRecordFilter(),
+            limit: 1,
+            page,
+            include_total: true,
+          });
+
+    recordRequest
       .then(({ records, totalCount }) => {
         const result = records.length > 0 ? records[0] : null;
 
