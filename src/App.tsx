@@ -651,7 +651,7 @@ function App() {
           minHeight: 0,
           overflow: "hidden",
           padding: 2,
-          paddingTop: 6,
+          paddingTop: 2,
           position: "relative",
         }}
       >
@@ -673,7 +673,7 @@ function App() {
             }
             sx={{
               position: "absolute",
-              top: 8,
+              top: 16,
               left: 8,
               zIndex: 10,
             }}
