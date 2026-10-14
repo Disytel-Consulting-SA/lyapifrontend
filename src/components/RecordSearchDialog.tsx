@@ -145,6 +145,7 @@ const searchFields = useMemo(
           editable={true}
           visualState="edit"
           requiredEmpty={false}
+          contextValues={criteria}
           onChange={(newValue) => handleChange(field, newValue)}
         />
       );
