@@ -22,6 +22,7 @@ import {
   TablePagination,
   TextField,
   Typography,
+  Tooltip,
 } from "@mui/material";
 
 import {
@@ -33,6 +34,9 @@ import type {
 } from "../types/metadata";
 
 import RecordDisplayValue from "./RecordDisplayValue";
+import DocumentActionButton from "./DocumentActionButton";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import LookupFilter from "./LookupFilter";
 
 import {
@@ -73,6 +77,8 @@ interface Props {
     recordPage: number
   ) => void;
 
+  onProcessed?: () => void;
+
   onDeleteRecord: (
     record: Record<string, unknown>
   ) => Promise<void>;
@@ -103,6 +109,7 @@ export default function RecordList({
   onSelectRecord,
   onEditRecord,
   onDeleteRecord,
+  onProcessed,
 }: Props) {
 
   /*
@@ -117,6 +124,11 @@ export default function RecordList({
    * - Description
    * - IsSelectionColumn = Y
    */
+  const docStatusField = tab.fields.find((field) => field.columnname.toLowerCase() === "docstatus" && field.isdisplayed !== false);
+  const docActionField = tab.fields.find((field) => field.columnname.toLowerCase() === "docaction" && field.reference?.button_type === "document-action" && field.isdisplayed !== false);
+  const keyField = tab.fields.find((field) => field.iskey);
+  const [processedVersion, setProcessedVersion] = useState(0);
+
   const listFields = useMemo(() => {
     return getSearchFields(tab.fields)
       .filter(
@@ -144,9 +156,11 @@ export default function RecordList({
     for (const field of listFields) {
       columns.add(field.columnname);
     }
+    if (docStatusField) columns.add(docStatusField.columnname);
+    if (docActionField && keyField) columns.add(keyField.columnname);
 
     return Array.from(columns).join(",");
-  }, [tab.pk_columns, listFields]);
+  }, [tab.pk_columns, listFields, docStatusField, docActionField, keyField]);
 
 
   const searchFields = useMemo(() => {
@@ -542,6 +556,7 @@ export default function RecordList({
     listPage,
     sort,
     refreshToken,
+    processedVersion,
   ]);
 
 
@@ -713,7 +728,7 @@ export default function RecordList({
         () =>
           "minmax(120px, 1fr)"
       )
-      .join(" ")} minmax(150px, auto)`;
+      .join(" ")} ${docStatusField ? "minmax(95px, auto) " : ""}minmax(110px, auto)`;
 
 
   return (
@@ -926,6 +941,7 @@ export default function RecordList({
           }
         )}
 
+        {docStatusField && <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{docStatusField.name}</Typography>}
         <Typography
           variant="subtitle2"
           sx={{
@@ -1082,6 +1098,17 @@ export default function RecordList({
               )}
 
 
+              {docStatusField && (() => {
+                const status = record[docStatusField.columnname.toLowerCase()];
+                const label = docStatusField.reference?.values?.find((option) => String(option.value) === String(status))?.name ?? String(status ?? "");
+                return (
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="caption" sx={{ display: { xs: "block", md: "none" }, color: "text.secondary" }}>{docStatusField.name}</Typography>
+                    {label && <Box component="span" sx={{ display: "inline-flex", border: 1, borderColor: "divider", borderRadius: 1, px: 1, py: 0.25, color: "text.secondary", fontSize: "0.75rem", whiteSpace: "nowrap" }}>{label}</Box>}
+                  </Box>
+                );
+              })()}
+
               {/* Acciones */}
 
               <Box
@@ -1110,45 +1137,21 @@ export default function RecordList({
                   },
                 }}
               >
-                <Button
-                  size="small"
-                  variant="text"
-                  disabled={
-                    tab.isreadonly ===
-                    true
-                  }
-                  onClick={(
-                    event
-                  ) =>
-                    handleEditRecord(
-                      event,
-                      record,
-                      rowIndex
-                    )
-                  }
-                >
-                  Editar
-                </Button>
-
-                <Button
-                  size="small"
-                  variant="text"
-                  color="error"
-                  disabled={
-                    tab.isreadonly ===
-                    true
-                  }
-                  onClick={(
-                    event
-                  ) =>
-                    handleDeleteRecord(
-                      event,
-                      record
-                    )
-                  }
-                >
-                  Eliminar
-                </Button>
+                {docActionField && keyField && (() => {
+                  const id = record[keyField.columnname.toLowerCase()];
+                  return id !== null && id !== undefined && id !== "" ? (
+                    <Box onClick={(event) => event.stopPropagation()}>
+                      <DocumentActionButton
+                        tableName={tab.tablename}
+                        recordId={String(id)}
+                        listMode
+                        onProcessed={() => { setProcessedVersion((value) => value + 1); onProcessed?.(); }}
+                      />
+                    </Box>
+                  ) : null;
+                })()}
+                <Tooltip title="Editar"><span><Button size="small" variant="text" aria-label="Editar" disabled={tab.isreadonly === true} onClick={(event) => handleEditRecord(event, record, rowIndex)}><EditIcon fontSize="small" /></Button></span></Tooltip>
+                <Tooltip title="Eliminar"><span><Button size="small" variant="text" color="error" aria-label="Eliminar" disabled={tab.isreadonly === true} onClick={(event) => handleDeleteRecord(event, record)}><DeleteIcon fontSize="small" /></Button></span></Tooltip>
               </Box>
 
             </Paper>
