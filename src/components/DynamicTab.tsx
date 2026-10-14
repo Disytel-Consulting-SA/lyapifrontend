@@ -2378,20 +2378,8 @@ export default function DynamicTab({
           "& .MuiButton-root.Mui-disabled": {
             opacity: 0.45,
           },
-          "& .MuiButtonGroup-root": {
-            alignItems: "stretch",
-          },
           "& .MuiButtonGroup-root > span": {
             display: "inline-flex",
-          },
-          "& .MuiButtonGroup-root > span:not(:last-child) .MuiButton-root": {
-            borderTopRightRadius: 0,
-            borderBottomRightRadius: 0,
-          },
-          "& .MuiButtonGroup-root > span:not(:first-of-type) .MuiButton-root": {
-            borderTopLeftRadius: 0,
-            borderBottomLeftRadius: 0,
-            marginLeft: "-1px",
           },
         }}
       >
@@ -2401,25 +2389,95 @@ export default function DynamicTab({
           variant="outlined"
           size="small"
         >
-          <Tooltip title="Primero"><span><Button
-            onClick={() = aria-label="Primero">
-            <FirstPageIcon fontSize="small" />
-          </Button></span></Tooltip>
+          <Tooltip title="Primero">
+            <span>
+              <Button
+            onClick={() => setPage(1)}
+            disabled={
+              viewMode !== "form" ||
+              isNewRecord ||
+              isNavigationDetached ||
+              isEditing ||
+              page === 1 ||
+              totalCount === 0
+            }
+            aria-label="Primero"
+          >
+                <FirstPageIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
 
-          <Tooltip title="Anterior"><span><Button
-            onClick={() = aria-label="Anterior">
-            <NavigateBeforeIcon fontSize="small" />
-          </Button></span></Tooltip>
+          <Tooltip title="Anterior">
+            <span>
+              <Button
+            onClick={() =>
+              setPage(
+                (current) =>
+                  Math.max(
+                    1,
+                    current - 1
+                  )
+              )
+            }
+            disabled={
+              viewMode !== "form" ||
+              isNewRecord ||
+              isNavigationDetached ||
+              isEditing ||
+              page === 1
+            }
+            aria-label="Anterior"
+          >
+                <NavigateBeforeIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
 
-          <Tooltip title="Siguiente"><span><Button
-            onClick={() = aria-label="Siguiente">
-            <NavigateNextIcon fontSize="small" />
-          </Button></span></Tooltip>
+          <Tooltip title="Siguiente">
+            <span>
+              <Button
+            onClick={() =>
+              setPage(
+                (current) =>
+                  current + 1
+              )
+            }
+            disabled={
+              viewMode !== "form" ||
+              isNewRecord ||
+              isNavigationDetached ||
+              isEditing ||
+              totalCount === 0 ||
+              page >= totalCount
+            }
+            aria-label="Siguiente"
+          >
+                <NavigateNextIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
 
-          <Tooltip title="Último"><span><Button
-            onClick={() = aria-label="Último">
-            <LastPageIcon fontSize="small" />
-          </Button></span></Tooltip>
+          <Tooltip title="Último">
+            <span>
+              <Button
+            onClick={() =>
+              setPage(totalCount)
+            }
+            disabled={
+              viewMode !== "form" ||
+              isNewRecord ||
+              isNavigationDetached ||
+              isEditing ||
+              totalCount === 0 ||
+              page >= totalCount
+            }
+            aria-label="Último"
+          >
+                <LastPageIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
         </ButtonGroup>
 
 
@@ -2428,7 +2486,9 @@ export default function DynamicTab({
           variant="outlined"
           size="small"
         >
-          <Tooltip title="Nuevo"><span><Button
+          <Tooltip title="Nuevo">
+            <span>
+              <Button
             onClick={handleNewRecord}
             disabled={
               viewMode !== "form" ||
@@ -2438,11 +2498,16 @@ export default function DynamicTab({
               isEditing ||
               saving
             }
-           aria-label="Nuevo">
-            <AddIcon fontSize="small" />
-          </Button></span></Tooltip>
+            aria-label="Nuevo"
+          >
+                <AddIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
 
-          <Tooltip title="Editar"><span><Button
+          <Tooltip title="Editar">
+            <span>
+              <Button
             onClick={handleEditRecord}
             disabled={
               viewMode !== "form" ||
@@ -2453,11 +2518,16 @@ export default function DynamicTab({
               getRecordKeyValues() ===
                 undefined
             }
-           aria-label="Editar">
-            <EditIcon fontSize="small" />
-          </Button></span></Tooltip>
+            aria-label="Editar"
+          >
+                <EditIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
 
-          <Tooltip title="Eliminar"><span><Button
+          <Tooltip title="Eliminar">
+            <span>
+              <Button
             onClick={handleDeleteRecord}
             disabled={
               viewMode !== "form" ||
@@ -2468,9 +2538,12 @@ export default function DynamicTab({
               getRecordKeyValues() ===
                 undefined
             }
-           aria-label="Eliminar">
-            <DeleteOutlineIcon fontSize="small" />
-          </Button></span></Tooltip>
+            aria-label="Eliminar"
+          >
+                <DeleteOutlineIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
         </ButtonGroup>
 
 
@@ -2479,15 +2552,45 @@ export default function DynamicTab({
           variant="outlined"
           size="small"
         >
-          <Tooltip title="Buscar"><span><Button
-            onClick={() = aria-label="Buscar">
-            <SearchIcon fontSize="small" />
-          </Button></span></Tooltip>
+          <Tooltip title="Buscar">
+            <span>
+              <Button
+            onClick={() =>
+              setSearchOpen(true)
+            }
+            disabled={
+              isNewRecord ||
+              isNavigationDetached ||
+              isEditing ||
+              saving
+            }
+            aria-label="Buscar"
+          >
+                <SearchIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
 
-          <Tooltip title="Limpiar búsqueda"><span><Button
-            onClick={() = aria-label="Limpiar búsqueda">
-            <SearchOffIcon fontSize="small" />
-          </Button></span></Tooltip>
+          <Tooltip title="Limpiar búsqueda">
+            <span>
+              <Button
+            onClick={() => {
+              setSearchFilter("");
+              setPage(1);
+            }}
+            disabled={
+              isNewRecord ||
+              isNavigationDetached ||
+              isEditing ||
+              saving ||
+              searchFilter === ""
+            }
+            aria-label="Limpiar búsqueda"
+          >
+                <SearchOffIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
         </ButtonGroup>
 
 
@@ -2497,10 +2600,30 @@ export default function DynamicTab({
             variant="outlined"
             size="small"
           >
-            <Tooltip title="Volver a registros"><span><Button
-              onClick={() = aria-label="Volver a registros">
-            <ReplayIcon fontSize="small" />
-          </Button></span></Tooltip>
+            <Tooltip title="Volver a registros">
+            <span>
+              <Button
+              onClick={() => {
+                /*
+                 * Al volver al conjunto navegable comenzamos desde
+                 * la primera página. La posición anterior puede haber
+                 * dejado de ser válida después del alta.
+                 */
+                setSaveMessage(null);
+                setSaveError(null);
+                setPage(1);
+                setIsNavigationDetached(false);
+              }}
+              disabled={
+                isEditing ||
+                saving
+              }
+              aria-label="Volver a registros"
+            >
+                <ReplayIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
           </ButtonGroup>
         )}
 
@@ -2510,10 +2633,24 @@ export default function DynamicTab({
           variant="outlined"
           size="small"
         >
-          <Tooltip title={useSameLineLayout ? "Mostrar una columna" : "Mostrar dos columnas"}><span><Button
-            onClick={() = aria-label={useSameLineLayout ? "Mostrar una columna" : "Mostrar dos columnas"}>
-            <ViewColumnIcon fontSize="small" />
-          </Button></span></Tooltip>
+          <Tooltip title={useSameLineLayout ? "Mostrar una columna" : "Mostrar dos columnas"}>
+            <span>
+              <Button
+            onClick={() =>
+              setUseSameLineLayout(
+                (current) => !current
+              )
+            }
+            disabled={
+              viewMode !== "form" ||
+              saving
+            }
+            aria-label={useSameLineLayout ? "Mostrar una columna" : "Mostrar dos columnas"}
+          >
+                <ViewColumnIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
         </ButtonGroup>
 
 
@@ -2522,20 +2659,65 @@ export default function DynamicTab({
           variant="outlined"
           size="small"
         >
-          <Tooltip title="Ficha"><span><Button
-            onClick={() = aria-label="Ficha">
-            <ArticleOutlinedIcon fontSize="small" />
-          </Button></span></Tooltip>
+          <Tooltip title="Ficha">
+            <span>
+              <Button
+            onClick={() =>
+              setViewMode("form")
+            }
+            disabled={
+              isNewRecord ||
+              isNavigationDetached ||
+              isEditing ||
+              saving ||
+              viewMode === "form"
+            }
+            aria-label="Ficha"
+          >
+                <ArticleOutlinedIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
 
-          <Tooltip title="Grilla"><span><Button
-            onClick={() = aria-label="Grilla">
-            <GridOnIcon fontSize="small" />
-          </Button></span></Tooltip>
+          <Tooltip title="Grilla">
+            <span>
+              <Button
+            onClick={() =>
+              setViewMode("grid")
+            }
+            disabled={
+              isNewRecord ||
+              isNavigationDetached ||
+              isEditing ||
+              saving ||
+              viewMode === "grid"
+            }
+            aria-label="Grilla"
+          >
+                <GridOnIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
 
-          <Tooltip title="Lista"><span><Button
-            onClick={() = aria-label="Lista">
-            <ViewListIcon fontSize="small" />
-          </Button></span></Tooltip>
+          <Tooltip title="Lista">
+            <span>
+              <Button
+            onClick={() =>
+              setViewMode("list")
+            }
+            disabled={
+              isNewRecord ||
+              isNavigationDetached ||
+              isEditing ||
+              saving ||
+              viewMode === "list"
+            }
+            aria-label="Lista"
+          >
+                <ViewListIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
         </ButtonGroup>
 
 
@@ -2545,7 +2727,9 @@ export default function DynamicTab({
             variant="outlined"
             size="small"
           >
-            <Tooltip title={saving ? "Guardando..." : "Guardar"}><span><Button
+            <Tooltip title={saving ? "Guardando..." : "Guardar"}>
+            <span>
+              <Button
               onClick={
                 handleSaveNewRecord
               }
@@ -2554,14 +2738,40 @@ export default function DynamicTab({
                 calloutPending ||
                 failedCalloutField !== null
               }
-             aria-label={saving ? "Guardando..." : "Guardar"}>
-            <SaveOutlinedIcon fontSize="small" />
-          </Button></span></Tooltip>
+              aria-label={saving ? "Guardando..." : "Guardar"}
+            >
+                <SaveOutlinedIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
 
-            <Tooltip title="Cancelar"><span><Button
-              onClick={() = aria-label="Cancelar">
-            <CloseIcon fontSize="small" />
-          </Button></span></Tooltip>
+            <Tooltip title="Cancelar">
+            <span>
+              <Button
+              onClick={() => {
+                calloutEpochRef.current += 1;
+                stateEvaluationRef.current += 1;
+                calloutPendingRef.current = false;
+
+                dirtyFieldsRef.current.clear();
+                previousCalloutValuesRef.current.clear();
+                queuedFieldsRef.current.clear();
+
+                setCalloutPending(false);
+                setCalloutError(null);
+                setCalloutMessage(null);
+                setFailedCalloutField(null);
+                setSaveError(null);
+                setIsNewRecord(false);
+                setIsNavigationDetached(false);
+              }}
+              disabled={saving}
+              aria-label="Cancelar"
+            >
+                <CloseIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
           </ButtonGroup>
         )}
 
@@ -2572,23 +2782,33 @@ export default function DynamicTab({
             variant="outlined"
             size="small"
           >
-            <Tooltip title={saving ? "Guardando..." : "Guardar"}><span><Button
+            <Tooltip title={saving ? "Guardando..." : "Guardar"}>
+            <span>
+              <Button
               onClick={
                 handleSaveEditedRecord
               }
               disabled={saving}
-             aria-label={saving ? "Guardando..." : "Guardar"}>
-            <SaveOutlinedIcon fontSize="small" />
-          </Button></span></Tooltip>
+              aria-label={saving ? "Guardando..." : "Guardar"}
+            >
+                <SaveOutlinedIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
 
-            <Tooltip title="Cancelar"><span><Button
+            <Tooltip title="Cancelar">
+            <span>
+              <Button
               onClick={
                 handleCancelEdit
               }
               disabled={saving}
-             aria-label="Cancelar">
-            <CloseIcon fontSize="small" />
-          </Button></span></Tooltip>
+              aria-label="Cancelar"
+            >
+                <CloseIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
           </ButtonGroup>
         )}
 
@@ -2598,12 +2818,17 @@ export default function DynamicTab({
           variant="outlined"
           size="small"
         >
-          <Tooltip title="Cerrar"><span><Button
+          <Tooltip title="Cerrar">
+            <span>
+              <Button
             onClick={onCloseWindow}
             disabled={saving}
-           aria-label="Cerrar">
-            <ExitToAppIcon fontSize="small" />
-          </Button></span></Tooltip>
+            aria-label="Cerrar"
+          >
+                <ExitToAppIcon fontSize="small" />
+              </Button>
+            </span>
+          </Tooltip>
         </ButtonGroup>
 
       </Box>
