@@ -742,7 +742,7 @@ export default function RecordList({
             onChange={
               handleSearchChange
             }
-            placeholder={`Buscar por ${textSearchFields
+            placeholder={`Filtrar por ${textSearchFields
               .map(
                 (field) =>
                   field.name
