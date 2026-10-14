@@ -132,7 +132,7 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
     const rawValue = values[parameter.columnname] ?? "";
     const editable = !evaluating && parameter.isreadonly !== true && state?.readonly !== true;
     const requiredEmpty = parameter.ismandatory && rawValue === "";
-    const visualState = state?.readonly ? "readonly" : "normal";
+    const visualState = state?.readonly ? "readonly" : editable ? "edit" : "view";
 
     if (parameter.reference?.type === "lookup") {
       return <LookupField key={parameter.process_para_id} field={parameter} rawValue={rawValue} editable={editable} visualState={visualState} requiredEmpty={requiredEmpty} contextValues={contextValues} onChange={(value) => void changeValue(parameter, value)} />;
