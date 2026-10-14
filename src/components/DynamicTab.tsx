@@ -20,7 +20,7 @@ import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import LastPageIcon from "@mui/icons-material/LastPage";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import DeleteIcon from "@mui/icons-material/Delete";
 import SearchIcon from "@mui/icons-material/Search";
 import SearchOffIcon from "@mui/icons-material/SearchOff";
 import ReplayIcon from "@mui/icons-material/Replay";
@@ -2540,7 +2540,7 @@ export default function DynamicTab({
             }
             aria-label="Eliminar"
           >
-                <DeleteOutlineIcon fontSize="small" />
+                <DeleteIcon fontSize="small" />
               </Button>
             </span>
           </Tooltip>
