@@ -728,11 +728,11 @@ export default function RecordList({
         () =>
           "minmax(120px, 1fr)"
       )
-      .join(" ")} ${docStatusField ? "minmax(95px, auto) " : ""}minmax(110px, auto)`;
+      .join(" ")} ${docStatusField ? "minmax(95px, auto) " : ""}minmax(155px, max-content)`;
 
 
   return (
-    <Box>
+    <Box sx={{ containerType: "inline-size" }}>
 
       {/* ============================
           FILTROS
@@ -893,6 +893,7 @@ export default function RecordList({
           display: {
             xs: "none",
             md: "grid",
+            "@container (max-width: 760px)": "none",
           },
 
           gridTemplateColumns:
@@ -1023,11 +1024,13 @@ export default function RecordList({
                 gridTemplateColumns: {
                   xs: "1fr",
                   md: desktopGridTemplate,
+                  "@container (max-width: 760px)": "1fr",
                 },
 
                 gap: {
                   xs: 0.75,
                   md: 2,
+                  "@container (max-width: 760px)": 0.75,
                 },
 
                 alignItems:
@@ -1068,6 +1071,7 @@ export default function RecordList({
                             ? "none"
                             : "block",
                           md: "block",
+                          "@container (max-width: 760px)": empty ? "none" : "block",
                         },
                       }}
                     >
@@ -1077,6 +1081,7 @@ export default function RecordList({
                           display: {
                             xs: "block",
                             md: "none",
+                            "@container (max-width: 760px)": "block",
                           },
                           color:
                             "text.secondary",
@@ -1118,6 +1123,7 @@ export default function RecordList({
                   justifyContent: {
                     xs: "flex-start",
                     md: "flex-end",
+                    "@container (max-width: 760px)": "flex-start",
                   },
 
                   gap: 1,
@@ -1125,6 +1131,7 @@ export default function RecordList({
                   mt: {
                     xs: 0.25,
                     md: 0,
+                    "@container (max-width: 760px)": 0.25,
                   },
 
                   "& .MuiButton-root": {
