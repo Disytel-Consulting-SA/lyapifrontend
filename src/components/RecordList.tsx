@@ -893,8 +893,8 @@ export default function RecordList({
           display: {
             xs: "none",
             md: "grid",
-            "@container (max-width: 760px)": "none",
           },
+          "@container (max-width: 900px)": { display: "none" },
 
           gridTemplateColumns:
             desktopGridTemplate,
@@ -942,7 +942,7 @@ export default function RecordList({
           }
         )}
 
-        {docStatusField && <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{docStatusField.name}</Typography>}
+        {docStatusField && <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{"Estado"}</Typography>}
         <Typography
           variant="subtitle2"
           sx={{
@@ -1024,14 +1024,16 @@ export default function RecordList({
                 gridTemplateColumns: {
                   xs: "1fr",
                   md: desktopGridTemplate,
-                  "@container (max-width: 760px)": "1fr",
+                },
+                "@container (max-width: 900px)": {
+                  gridTemplateColumns: "1fr",
                 },
 
                 gap: {
                   xs: 0.75,
                   md: 2,
-                  "@container (max-width: 760px)": 0.75,
                 },
+                "@container (max-width: 900px)": { gap: 0.75 },
 
                 alignItems:
                   "center",
@@ -1071,8 +1073,8 @@ export default function RecordList({
                             ? "none"
                             : "block",
                           md: "block",
-                          "@container (max-width: 760px)": empty ? "none" : "block",
                         },
+                        "@container (max-width: 900px)": { display: empty ? "none" : "block" },
                       }}
                     >
                       <Typography
@@ -1081,8 +1083,8 @@ export default function RecordList({
                           display: {
                             xs: "block",
                             md: "none",
-                            "@container (max-width: 760px)": "block",
                           },
+                          "@container (max-width: 900px)": { display: "block" },
                           color:
                             "text.secondary",
                           fontSize: "0.7rem",
@@ -1108,7 +1110,7 @@ export default function RecordList({
                 const label = docStatusField.reference?.values?.find((option) => String(option.value) === String(status))?.name ?? String(status ?? "");
                 return (
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="caption" sx={{ display: { xs: "block", md: "none" }, color: "text.secondary" }}>{docStatusField.name}</Typography>
+                    <Typography variant="caption" sx={{ display: { xs: "block", md: "none" }, color: "text.secondary" }}>Estado</Typography>
                     {label && <Box component="span" sx={{ display: "inline-flex", border: 1, borderColor: "divider", borderRadius: 1, px: 1, py: 0.25, color: "text.secondary", fontSize: "0.75rem", whiteSpace: "nowrap" }}>{label}</Box>}
                   </Box>
                 );
@@ -1123,16 +1125,16 @@ export default function RecordList({
                   justifyContent: {
                     xs: "flex-start",
                     md: "flex-end",
-                    "@container (max-width: 760px)": "flex-start",
                   },
+                  "@container (max-width: 900px)": { justifyContent: "flex-start" },
 
                   gap: 1,
 
                   mt: {
                     xs: 0.25,
                     md: 0,
-                    "@container (max-width: 760px)": 0.25,
                   },
+                  "@container (max-width: 900px)": { mt: 0.25 },
 
                   "& .MuiButton-root": {
                     minWidth: "auto",
