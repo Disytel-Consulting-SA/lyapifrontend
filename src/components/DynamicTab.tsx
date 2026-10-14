@@ -1562,6 +1562,15 @@ export default function DynamicTab({
   const docStatusLabel = docStatusField?.reference?.values?.find(
     (value) => value.value === String(docStatusValue)
   )?.name ?? (docStatusValue == null ? "—" : String(docStatusValue));
+  const documentNoField = documentTab?.fields.find(
+    (field) => field.columnname.toLowerCase() === "documentno"
+  );
+  const documentNoValue = documentNoField && documentRecord
+    ? documentRecord[documentNoField.columnname.toLowerCase()]
+    : undefined;
+  const documentNo = documentNoValue == null ? "" : String(documentNoValue).trim();
+  const hasDocumentStatus = docStatusValue !== undefined && docStatusValue !== null && String(docStatusValue).trim() !== "";
+
 
   async function handleQuickActionProcessed() {
     setRefreshToken((current) => current + 1);
@@ -2273,6 +2282,8 @@ export default function DynamicTab({
           paddingLeft: 4,
         }}
       >
+        <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, minWidth: 0 }}>
+          <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, minWidth: 0 }}>
       <Tooltip
         arrow
         placement="right"
@@ -2303,14 +2314,42 @@ export default function DynamicTab({
           {tab.name}
         </Typography>
       </Tooltip>
-
-      {tab.data_endpoint && (
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ display: "inline", ml: 1 }}
-        >
-          {"— "}
+            {documentNo && (
+              <Tooltip title={documentNoField?.name ?? "Número de documento"}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, overflowWrap: "anywhere" }}>
+                  {documentNo}
+                </Typography>
+              </Tooltip>
+            )}
+            {hasDocumentStatus && (
+              <Tooltip title={docStatusField?.name ?? "Estado del documento"}>
+                <Box
+                  component="span"
+                  sx={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    px: 1,
+                    py: 0.25,
+                    border: 1,
+                    borderColor: "divider",
+                    borderRadius: 1,
+                    color: "text.secondary",
+                    fontSize: "0.75rem",
+                    lineHeight: 1.5,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {docStatusLabel}
+                </Box>
+              </Tooltip>
+            )}
+          </Box>
+          {tab.data_endpoint && (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ marginLeft: "auto", whiteSpace: "nowrap", fontSize: "0.75rem" }}
+            >
           {viewMode === "grid"
             ? `Grilla — ${totalCount} registros`
             : viewMode === "list"
@@ -2326,8 +2365,9 @@ export default function DynamicTab({
             : totalCount > 0
             ? `Registro ${page} de ${totalCount}`
             : "Sin registros"}
-        </Typography>
-      )}
+            </Typography>
+          )}
+        </Box>
 
         {tab.isreadonly && (
           <Alert
@@ -2839,17 +2879,6 @@ export default function DynamicTab({
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, alignItems: "center", marginBottom: 2 }}>
             {documentActionField && documentTab && (
               <>
-                {docStatusField && documentRecordId !== undefined && (
-                  <Tooltip title={docStatusField.name}>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ px: 1, whiteSpace: "nowrap" }}
-                    >
-                      {docStatusLabel}
-                    </Typography>
-                  </Tooltip>
-                )}
                 <ButtonField
                   key={`documento-${documentTab.ad_tab_id}-${documentRecordId ?? "nuevo"}`}
                   compact
