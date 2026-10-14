@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -124,6 +125,20 @@ export default function RecordList({
    * - Description
    * - IsSelectionColumn = Y
    */
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const [compactLayout, setCompactLayout] = useState(false);
+
+  useEffect(() => {
+    const element = listContainerRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width !== undefined) setCompactLayout(width < 900);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   const docStatusField = tab.fields.find((field) => field.columnname.toLowerCase() === "docstatus" && field.isdisplayed !== false);
   const docActionField = tab.fields.find((field) => field.columnname.toLowerCase() === "docaction" && field.reference?.button_type === "document-action" && field.isdisplayed !== false);
   const keyField = tab.fields.find((field) => field.iskey);
@@ -732,7 +747,7 @@ export default function RecordList({
 
 
   return (
-    <Box sx={{ containerType: "inline-size" }}>
+    <Box ref={listContainerRef} sx={{ width: "100%", minWidth: 0 }}>
 
       {/* ============================
           FILTROS
@@ -890,11 +905,7 @@ export default function RecordList({
 
       <Box
         sx={{
-          display: {
-            xs: "none",
-            md: "grid",
-          },
-          "@container (max-width: 900px)": { display: "none" },
+          display: compactLayout ? "none" : { xs: "none", md: "grid" },
 
           gridTemplateColumns:
             desktopGridTemplate,
@@ -1021,19 +1032,9 @@ export default function RecordList({
 
                 display: "grid",
 
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  md: desktopGridTemplate,
-                },
-                "@container (max-width: 900px)": {
-                  gridTemplateColumns: "1fr",
-                },
+                gridTemplateColumns: compactLayout ? "minmax(0, 1fr)" : { xs: "1fr", md: desktopGridTemplate },
 
-                gap: {
-                  xs: 0.75,
-                  md: 2,
-                },
-                "@container (max-width: 900px)": { gap: 0.75 },
+                gap: compactLayout ? 0.75 : { xs: 0.75, md: 2 },
 
                 alignItems:
                   "center",
@@ -1074,7 +1075,7 @@ export default function RecordList({
                             : "block",
                           md: "block",
                         },
-                        "@container (max-width: 900px)": { display: empty ? "none" : "block" },
+                        ...(compactLayout ? { display: empty ? "none" : "block" } : {}),
                       }}
                     >
                       <Typography
@@ -1084,7 +1085,7 @@ export default function RecordList({
                             xs: "block",
                             md: "none",
                           },
-                          "@container (max-width: 900px)": { display: "block" },
+                          ...(compactLayout ? { display: "block" } : {}),
                           color:
                             "text.secondary",
                           fontSize: "0.7rem",
@@ -1110,7 +1111,7 @@ export default function RecordList({
                 const label = docStatusField.reference?.values?.find((option) => String(option.value) === String(status))?.name ?? String(status ?? "");
                 return (
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="caption" sx={{ display: { xs: "block", md: "none" }, color: "text.secondary" }}>Estado</Typography>
+                    <Typography variant="caption" sx={{ display: compactLayout ? "block" : { xs: "block", md: "none" }, color: "text.secondary" }}>Estado</Typography>
                     {label && <Box component="span" sx={{ display: "inline-flex", border: 1, borderColor: "divider", borderRadius: 1, px: 1, py: 0.25, color: "text.secondary", fontSize: "0.75rem", whiteSpace: "nowrap" }}>{label}</Box>}
                   </Box>
                 );
@@ -1126,7 +1127,7 @@ export default function RecordList({
                     xs: "flex-start",
                     md: "flex-end",
                   },
-                  "@container (max-width: 900px)": { justifyContent: "flex-start" },
+                  ...(compactLayout ? { justifyContent: "flex-start" } : {}),
 
                   gap: 1,
 
@@ -1134,7 +1135,7 @@ export default function RecordList({
                     xs: 0.25,
                     md: 0,
                   },
-                  "@container (max-width: 900px)": { mt: 0.25 },
+                  ...(compactLayout ? { mt: 0.25 } : {}),
 
                   "& .MuiButton-root": {
                     minWidth: "auto",
