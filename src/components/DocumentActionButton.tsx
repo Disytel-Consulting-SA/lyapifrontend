@@ -8,6 +8,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 
 import {
   getDocumentActions,
@@ -25,6 +26,7 @@ interface Props {
   recordId: string | number;
   disabled?: boolean;
   onProcessed: () => void;
+  listMode?: boolean;
 }
 
 
@@ -33,6 +35,7 @@ export default function DocumentActionButton({
   recordId,
   disabled = false,
   onProcessed,
+  listMode = false,
 }: Props) {
 
   const [documentActions, setDocumentActions] = useState<DocumentActions | null>(null);
@@ -100,6 +103,33 @@ export default function DocumentActionButton({
     }
   }
 
+
+  if (listMode) {
+    return (
+      <>
+        <Tooltip title={error ?? "Acciones del documento"}>
+          <span>
+            <Button
+              size="small"
+              variant="outlined"
+              aria-label="Acciones del documento"
+              disabled={disabled || loading || processing || actions.length === 0}
+              onClick={(event) => { event.stopPropagation(); setAnchorEl(event.currentTarget); }}
+              sx={{ minWidth: 36, px: 0.5 }}
+            >
+              {loading || processing ? <CircularProgress size={16} /> : <DescriptionOutlinedIcon fontSize="small" />}
+              <ArrowDropDownIcon fontSize="small" />
+            </Button>
+          </span>
+        </Tooltip>
+        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)} onClick={(event) => event.stopPropagation()}>
+          {actions.map((action) => (
+            <MenuItem key={action.value} onClick={() => void executeAction(action)}>{action.name}</MenuItem>
+          ))}
+        </Menu>
+      </>
+    );
+  }
 
   if (loading) {
     return (
