@@ -2314,14 +2314,14 @@ export default function DynamicTab({
           {tab.name}
         </Typography>
       </Tooltip>
-            {documentNo && (
+            {viewMode === "form" && documentNo && (
               <Tooltip title={documentNoField?.name ?? "Número de documento"}>
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, overflowWrap: "anywhere" }}>
                   {documentNo}
                 </Typography>
               </Tooltip>
             )}
-            {hasDocumentStatus && (
+            {viewMode === "form" && hasDocumentStatus && (
               <Tooltip title={docStatusField?.name ?? "Estado del documento"}>
                 <Box
                   component="span"
