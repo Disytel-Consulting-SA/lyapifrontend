@@ -98,13 +98,14 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
       return state?.displayed !== false && parameter.ismandatory && (values[parameter.columnname] ?? "") === "";
     });
     if (missingRequired) {
-      setError("Complete los parámetros obligatorios antes de ejecutar el proceso.");
+      setError(mode === "report" ? "Complete los parámetros obligatorios antes de generar el informe." : "Complete los parámetros obligatorios antes de ejecutar el proceso.");
       return;
     }
 
     setExecuting(true);
     setError(null);
     setResult(null);
+    if (mode === "report") setPdfUrl(null);
 
     try {
       if (mode === "report") {
@@ -212,7 +213,7 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
 
   return (
     <Dialog open={open} onClose={evaluating || executing ? undefined : onClose} fullWidth maxWidth={pdfUrl ? "lg" : "sm"}>
-      <DialogTitle>{schema?.name ?? "Proceso"}</DialogTitle>
+      <DialogTitle>{schema?.name ?? (mode === "report" ? "Informe" : "Proceso")}</DialogTitle>
       <DialogContent>
         {loading && <Box sx={{ display: "flex", justifyContent: "center", padding: 3 }}><CircularProgress size={28} /></Box>}
         {error && <Alert severity="error" sx={{ marginY: 1 }}>{error}</Alert>}
@@ -228,7 +229,7 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={evaluating || executing}>{result?.success ? "Cerrar" : "Cancelar"}</Button>
+        <Button onClick={onClose} disabled={evaluating || executing}>{result?.success || pdfUrl ? "Cerrar" : "Cancelar"}</Button>
         {pdfUrl && <Button href={pdfUrl} download={`informe-${processId}.pdf`}>Descargar PDF</Button>}
         {!result?.success && <Button variant="contained" disabled={loading || evaluating || executing || !schema} onClick={() => void runProcess()}>{executing ? (mode === "report" ? "Generando..." : "Ejecutando...") : (mode === "report" ? "Generar informe" : "Ejecutar")}</Button>}
       </DialogActions>
