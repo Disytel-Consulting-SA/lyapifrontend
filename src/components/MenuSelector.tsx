@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Autocomplete, Box, ListItemIcon, ListItemText, TextField } from "@mui/material";
-import { SettingsOutlined, WindowOutlined } from "@mui/icons-material";
+import { AssessmentOutlined, SettingsOutlined, WindowOutlined } from "@mui/icons-material";
 import { getMenuOptions } from "../api/libertyaApi";
 import type { MenuOption } from "../types/metadata";
 
@@ -42,7 +42,7 @@ export default function MenuSelector({ value, onChange }: Props) {
           key={option.ad_menu_id}
         >
           <ListItemIcon sx={{ minWidth: 34 }}>
-            {option.type === "window" ? <WindowOutlined fontSize="small" /> : <SettingsOutlined fontSize="small" />}
+            {option.type === "window" ? <WindowOutlined fontSize="small" /> : option.type === "report" ? <AssessmentOutlined fontSize="small" /> : <SettingsOutlined fontSize="small" />}
           </ListItemIcon>
           <ListItemText primary={option.name} />
         </Box>
