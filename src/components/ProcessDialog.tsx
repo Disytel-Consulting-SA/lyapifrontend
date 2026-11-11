@@ -32,7 +32,7 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
   useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
 
   function buildPdfFilename(reportName: string, date: Date): string {
-    const safeName = reportName.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+    const safeName = reportName.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "informe";
     const pad = (value: number) => String(value).padStart(2, "0");
     const stamp = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
