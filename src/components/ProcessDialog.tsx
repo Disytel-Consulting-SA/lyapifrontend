@@ -1,21 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, TextField, Typography } from "@mui/material";
-import { evaluateProcessState, executeProcess, getProcessSchema } from "../api/libertyaApi";
+import { evaluateProcessState, executeProcess, generateProcessReport, getProcessSchema } from "../api/libertyaApi";
 import type { ProcessParameterState, ProcessSchema, ProcessSchemaParameter } from "../types/process";
 import LookupField from "./LookupField";
 import SearchField from "./SearchField";
 
 interface Props {
   open: boolean;
+  mode?: "process" | "report";
   processId: number;
   tableName?: string;
   recordId?: string | number;
   onClose: () => void;
 }
 
-export default function ProcessDialog({ open, processId, tableName, recordId, onClose }: Props) {
+export default function ProcessDialog({ open, processId, tableName, recordId, onClose, mode = "process" }: Props) {
   const [schema, setSchema] = useState<ProcessSchema | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [valuesTo, setValuesTo] = useState<Record<string, string>>({});
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfFilename, setPdfFilename] = useState<string>("informe.pdf");
   const [states, setStates] = useState<Record<string, ProcessParameterState>>({});
   const [loading, setLoading] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
@@ -25,6 +29,16 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
 
   const contextValues = useMemo(() => values, [values]);
 
+  useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
+
+  function buildPdfFilename(reportName: string, date: Date): string {
+    const safeName = reportName.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "informe";
+    const pad = (value: number) => String(value).padStart(2, "0");
+    const stamp = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+    return `${safeName}-${stamp}.pdf`;
+  }
+
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -32,6 +46,9 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
     setError(null);
     setSchema(null);
     setValues({});
+    setValuesTo({});
+    setPdfUrl(null);
+    setPdfFilename("informe.pdf");
     setStates({});
     setResult(null);
 
@@ -56,7 +73,7 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
       });
 
     return () => { cancelled = true; };
-  }, [open, processId, tableName, recordId]);
+  }, [open, processId, tableName, recordId, mode]);
 
   async function changeValue(parameter: ProcessSchemaParameter, value: string) {
     const nextValues = { ...values };
@@ -91,15 +108,22 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
       return state?.displayed !== false && parameter.ismandatory && (values[parameter.columnname] ?? "") === "";
     });
     if (missingRequired) {
-      setError("Complete los parámetros obligatorios antes de ejecutar el proceso.");
+      setError(mode === "report" ? "Complete los parámetros obligatorios antes de generar el informe." : "Complete los parámetros obligatorios antes de ejecutar el proceso.");
       return;
     }
 
     setExecuting(true);
     setError(null);
     setResult(null);
+    if (mode === "report") setPdfUrl(null);
 
     try {
+      if (mode === "report") {
+        const pdf = await generateProcessReport(processId, { values, values_to: valuesTo });
+        setPdfFilename(buildPdfFilename(schema.name, new Date()));
+        setPdfUrl(URL.createObjectURL(pdf));
+        return;
+      }
       const response = await executeProcess(processId, {
         table: tableName,
         record_id: recordId === undefined ? undefined : Number(recordId),
@@ -112,6 +136,15 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
     } finally {
       setExecuting(false);
     }
+  }
+
+  function changeRangeEnd(parameter: ProcessSchemaParameter, value: string) {
+    setValuesTo((current) => {
+      const next = { ...current };
+      if (value === "") delete next[parameter.columnname];
+      else next[parameter.columnname] = value;
+      return next;
+    });
   }
 
   function formatProcessSummary(summary?: string | null) {
@@ -161,8 +194,8 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
     const inputType = type === "date" ? "date" : type === "datetime" ? "datetime-local" : type === "time" ? "time" : ["integer", "number", "amount", "quantity", "costprice"].includes(type ?? "") ? "number" : "text";
 
     return (
+      <Box key={parameter.process_para_id}>
       <TextField
-        key={parameter.process_para_id}
         fullWidth
         margin="dense"
         label={parameter.name}
@@ -177,23 +210,50 @@ export default function ProcessDialog({ open, processId, tableName, recordId, on
         onChange={(event) => setValues((current) => ({ ...current, [parameter.columnname]: event.target.value }))}
         onBlur={(event) => void changeValue(parameter, event.target.value)}
       />
+      {parameter.isrange && (
+        <TextField
+          fullWidth margin="dense" label={`${parameter.name} (hasta)`}
+          disabled={!editable} type={inputType} value={valuesTo[parameter.columnname] ?? ""}
+          slotProps={{ inputLabel: { shrink: true } }}
+          onChange={(event) => changeRangeEnd(parameter, event.target.value)}
+        />
+      )}
+      </Box>
     );
   }
 
   return (
-    <Dialog open={open} onClose={evaluating ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>{schema?.name ?? "Proceso"}</DialogTitle>
+    <Dialog open={open} onClose={evaluating || executing ? undefined : onClose} fullWidth maxWidth={mode === "report" ? "lg" : "sm"}>
+      <DialogTitle>{schema?.name ?? (mode === "report" ? "Informe" : "Proceso")}</DialogTitle>
       <DialogContent>
         {loading && <Box sx={{ display: "flex", justifyContent: "center", padding: 3 }}><CircularProgress size={28} /></Box>}
         {error && <Alert severity="error" sx={{ marginY: 1 }}>{error}</Alert>}
         {result?.success && <Alert severity="success" sx={{ marginY: 1 }}>{formatProcessSummary(result.summary) || "Proceso ejecutado correctamente."}</Alert>}
         {!loading && schema?.description && <Typography variant="body2" sx={{ marginBottom: 1 }}>{schema.description}</Typography>}
-        {!loading && schema?.parameters?.sort((a, b) => (a.seqno ?? 0) - (b.seqno ?? 0)).map(renderParameter)}
+        {!loading && schema && (
+          <Box sx={mode === "report" ? {
+            display: "grid",
+            gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" },
+            columnGap: 2,
+            rowGap: 1,
+            alignItems: "start",
+            "& > *": { minWidth: 0 },
+          } : undefined}>
+            {[...schema.parameters].sort((a, b) => (a.seqno ?? 0) - (b.seqno ?? 0)).map(renderParameter)}
+          </Box>
+        )}
         {evaluating && <Typography variant="caption">Actualizando parámetros...</Typography>}
+        {pdfUrl && (
+          <Box sx={{ mt: 2, height: "min(70vh, 800px)", minHeight: 320 }}>
+            <Box component="iframe" title={schema?.name ?? "Informe PDF"} src={pdfUrl}
+              sx={{ width: "100%", height: "100%", border: 0 }} />
+          </Box>
+        )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={evaluating || executing}>{result?.success ? "Cerrar" : "Cancelar"}</Button>
-        {!result?.success && <Button variant="contained" disabled={loading || evaluating || executing || !schema} onClick={() => void runProcess()}>{executing ? "Ejecutando..." : "Ejecutar"}</Button>}
+        <Button onClick={onClose} disabled={evaluating || executing}>{result?.success || pdfUrl ? "Cerrar" : "Cancelar"}</Button>
+        {pdfUrl && <Button href={pdfUrl} download={pdfFilename}>Descargar PDF</Button>}
+        {!result?.success && <Button variant="contained" disabled={loading || evaluating || executing || !schema} onClick={() => void runProcess()}>{executing ? (mode === "report" ? "Generando..." : "Ejecutando...") : (mode === "report" ? "Generar informe" : "Ejecutar")}</Button>}
       </DialogActions>
     </Dialog>
   );

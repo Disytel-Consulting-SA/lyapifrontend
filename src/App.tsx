@@ -63,6 +63,7 @@ function App() {
   const [menuOption, setMenuOption] = useState<MenuOption | null>(null);
   const [windowId, setWindowId] = useState<number | "">("");
   const [menuProcessId, setMenuProcessId] = useState<number | null>(null);
+  const [menuProcessMode, setMenuProcessMode] = useState<"process" | "report">("process");
 
   const [windowSchema, setWindowSchema] =
     useState<WindowSchema | null>(null);
@@ -522,7 +523,8 @@ function App() {
                     if (option.type === "window") {
                       setMenuProcessId(null);
                       setWindowId(option.target_id);
-                    } else if (option.type === "process") {
+                    } else if (option.type === "process" || option.type === "report") {
+                      setMenuProcessMode(option.type);
                       setWindowId("");
                       setMenuProcessId(option.target_id);
                     }
@@ -720,6 +722,7 @@ function App() {
         <ProcessDialog
           open
           processId={menuProcessId}
+          mode={menuProcessMode}
           onClose={() => {
             setMenuProcessId(null);
             setMenuOption(null);

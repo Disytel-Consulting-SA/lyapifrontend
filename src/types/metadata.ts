@@ -5,7 +5,7 @@ export type { DynamicField, DynamicFieldReference, DynamicFieldReferenceValue } 
 export interface MenuOption {
   ad_menu_id: number;
   name: string;
-  type: "window" | "process";
+  type: "window" | "process" | "report";
   target_id: number;
 }
 

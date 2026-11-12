@@ -1147,3 +1147,27 @@ export async function executeProcess(processId: number, request: ProcessExecuteR
   }
   return response.json();
 }
+
+
+/** Ejecuta un informe nativo o Jasper y devuelve el PDF para visualizarlo. */
+export async function generateProcessReport(processId: number, request: ProcessExecuteRequest): Promise<Blob> {
+  // Un 403 de permisos del informe no debe invalidar el JWT contextual.
+  const response = await authenticatedFetch(`${BASE_URL}/v1.0/processes/${processId}/report`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/pdf" },
+    body: JSON.stringify(request),
+  }, false);
+  if (!response.ok) {
+    const detail = (await response.text()).trim();
+    const message = response.status === 403 ? "No tiene permisos para ejecutar este informe."
+      : response.status === 400 ? "Los parámetros del informe no son válidos."
+      : response.status === 404 ? "El informe no existe o no está disponible."
+      : "No se pudo generar el informe.";
+    throw new Error(`${message} (HTTP ${response.status})${detail ? `: ${detail.slice(0, 400)}` : ""}`);
+  }
+  const pdf = await response.blob();
+  if (!pdf.size || !pdf.type.toLowerCase().includes("pdf")) {
+    throw new Error("El servidor no devolvió un documento PDF válido.");
+  }
+  return pdf;
+}
