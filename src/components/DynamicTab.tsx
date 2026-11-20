@@ -2387,8 +2387,8 @@ export default function DynamicTab({
               marginTop: 2,
             }}
           >
-            No existe un endpoint REST configurado
-            para la tabla {tab.tablename}.
+            {tab.data_endpoint_error ||
+              `No existe un endpoint REST configurado para la tabla ${tab.tablename}.`}
           </Alert>
         )}
       </Box>
