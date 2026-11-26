@@ -859,13 +859,7 @@ export default function DynamicTab({
         recordKeyValues
       );
 
-      setSaveMessage(
-        "Registro eliminado correctamente."
-      );
-
-      setRefreshToken(
-        (current) => current + 1
-      );
+      resetAfterDelete();
     } catch (error) {
       console.error(
         `Error eliminando registro en ${tab.data_endpoint}`,
@@ -1295,6 +1289,33 @@ export default function DynamicTab({
   }
 
 
+  function resetAfterDelete() {
+    // Invalidar la ficha y las evaluaciones pendientes del registro eliminado.
+    stateEvaluationRef.current += 1;
+    calloutEpochRef.current += 1;
+    dirtyFieldsRef.current.clear();
+    previousCalloutValuesRef.current.clear();
+    queuedFieldsRef.current.clear();
+    setRecord({});
+    recordRef.current = {};
+    setOriginalRecord(null);
+    setFieldStates([]);
+    setCalloutError(null);
+    setCalloutMessage(null);
+    setFailedCalloutField(null);
+    setIsNewRecord(false);
+    setIsEditing(false);
+    setIsNavigationDetached(false);
+    setTotalCount(0);
+    if (isNavigationDetached) {
+      setPage(1);
+      onPageChange(tab.ad_tab_id, 1);
+    }
+    onRecordChange(tab.ad_tab_id, null);
+    setSaveMessage("Registro eliminado correctamente.");
+    setRefreshToken((current) => current + 1);
+  }
+
   async function handleDeleteRecord() {
     if (!tab.data_endpoint) {
       setSaveError(
@@ -1331,13 +1352,7 @@ export default function DynamicTab({
         recordKeyValues
       );
 
-      setSaveMessage(
-        "Registro eliminado correctamente."
-      );
-
-      setRefreshToken(
-        (current) => current + 1
-      );
+      resetAfterDelete();
 
     } catch (error) {
       console.error(
@@ -2188,6 +2203,7 @@ export default function DynamicTab({
      * continúan navegándose mediante su endpoint REST específico,
      * como ocurría antes de incorporar la navegación contextual.
      */
+    let cancelled = false;
     const recordRequest =
       (tab.pk_columns?.length ?? 0) > 1
         ? getRecord(
@@ -2208,6 +2224,7 @@ export default function DynamicTab({
 
     recordRequest
       .then(({ records, totalCount }) => {
+        if (cancelled) return;
         const result = records.length > 0 ? records[0] : null;
 
         setTotalCount(totalCount);
@@ -2215,8 +2232,11 @@ export default function DynamicTab({
         if (result === null) {
           if (totalCount > 0 && page > totalCount) {
             setPage(totalCount);
+            onPageChange(tab.ad_tab_id, totalCount);
           } else {
             setRecord({});
+            recordRef.current = {};
+            setOriginalRecord(null);
             setFieldStates([]);
             onRecordChange(tab.ad_tab_id, null);
           }
@@ -2239,12 +2259,15 @@ export default function DynamicTab({
         void reevaluateRecordState(result);
       })
       .catch((error) => {
+        if (cancelled) return;
         console.error(
           `Error recuperando registros de AD_Tab_ID=${tab.ad_tab_id}`,
           error
         );
 
         setRecord({});
+        recordRef.current = {};
+        setOriginalRecord(null);
         setFieldStates([]);
         setTotalCount(0);
 
@@ -2253,6 +2276,8 @@ export default function DynamicTab({
           null
         );
       });
+
+    return () => { cancelled = true; };
 
   }, [
     tab,
@@ -2387,8 +2412,8 @@ export default function DynamicTab({
               marginTop: 2,
             }}
           >
-            No existe un endpoint REST configurado
-            para la tabla {tab.tablename}.
+            {tab.data_endpoint_error ||
+              `No existe un endpoint REST configurado para la tabla ${tab.tablename}.`}
           </Alert>
         )}
       </Box>
