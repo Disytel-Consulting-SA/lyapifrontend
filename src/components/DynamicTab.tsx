@@ -796,10 +796,17 @@ export default function DynamicTab({
   }
 
 
+  function canWrite(method: "POST" | "PUT" | "DELETE"): boolean {
+    return !!ancestors && tab.isreadonly !== true && !!tab.crud_endpoints?.[method]
+      && (method !== "POST" || tab.isinsertrecord !== false)
+      && (method === "DELETE" || !!(tab.crud_endpoints?.GET ?? tab.data_endpoint));
+  }
+
     function handleListEditRecord(
     selectedRecord: Record<string, unknown>,
     recordPage: number
   ) {
+    if (!canWrite("PUT") || saving || !getRecordIdentity(tab, selectedRecord)) return;
     selectRecord(
       selectedRecord,
       recordPage
@@ -825,7 +832,8 @@ export default function DynamicTab({
   }
 
   async function deleteSelectedRecord(selectedRecord: Record<string, unknown>) {
-    if (!tab.crud_endpoints?.DELETE) {
+    if (saving) return;
+    if (!canWrite("DELETE")) {
       setSaveError("La pestaña no admite eliminaciones contextuales");
       return;
     }
@@ -859,7 +867,7 @@ export default function DynamicTab({
       resetAfterDelete();
     } catch (error) {
       console.error(
-        `Error eliminando registro en ${tab.crud_endpoints.DELETE}`,
+        `Error eliminando registro en ${tab.crud_endpoints?.DELETE}`,
         error
       );
 
@@ -902,7 +910,7 @@ export default function DynamicTab({
 
   async function handleNewRecord() {
 
-    if (tab.isinsertrecord === false)
+    if (!canWrite("POST") || saving)
       return;
 
     setSaveError(null);
@@ -966,6 +974,7 @@ export default function DynamicTab({
 
 
   function handleEditRecord() {
+    if (!canWrite("PUT") || saving || !getRecordIdentity(tab, record)) return;
     setSaveError(null);
     setSaveMessage(null);
 
@@ -2476,6 +2485,7 @@ export default function DynamicTab({
               <Button
             onClick={handleNewRecord}
             disabled={
+              !canWrite("POST") ||
               viewMode !== "form" ||
               tab.isreadonly === true ||
               tab.isinsertrecord === false ||
@@ -2495,6 +2505,7 @@ export default function DynamicTab({
               <Button
             onClick={handleEditRecord}
             disabled={
+              !canWrite("PUT") ||
               viewMode !== "form" ||
               tab.isreadonly === true ||
               isNewRecord ||
@@ -2515,6 +2526,7 @@ export default function DynamicTab({
               <Button
             onClick={handleDeleteRecord}
             disabled={
+              !canWrite("DELETE") ||
               viewMode !== "form" ||
               tab.isreadonly === true ||
               isNewRecord ||
@@ -3050,6 +3062,8 @@ export default function DynamicTab({
               state={listViewState}
               onStateChange={setListViewState}
               onSelectRecord={handleGridSelectRecord}
+              canEdit={canWrite("PUT") && !saving}
+              canDelete={canWrite("DELETE") && !saving}
               onEditRecord={handleListEditRecord}
               onDeleteRecord={handleListDeleteRecord}
             />
