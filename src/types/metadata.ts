@@ -50,6 +50,7 @@ export interface WindowSchemaTab {
   // Endpoint alternativo para la creación de un nuevo registro. Si no esta definido, se utiliza el mismo endpoint de data_endpoint.
   create_endpoint?: string;
   pk_columns?: string[];
+  crud_endpoints?: Partial<Record<"GET" | "POST" | "PUT" | "DELETE", string>>;
 
   /**
    * Pestaña padre estructural.
