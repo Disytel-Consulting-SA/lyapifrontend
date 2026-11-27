@@ -1,4 +1,4 @@
-import { getAncestorIdentities, getRecordIdentity, sameIdentity, isDescendantTab } from "./utils/recordIdentity";
+import { getAncestorIdentities, getRecordIdentity, identityKey, sameIdentity, isDescendantTab } from "./utils/recordIdentity";
 import { useEffect, useState } from "react";
 
 import {
@@ -239,6 +239,11 @@ function App() {
   const ancestors = selectedTab && windowSchema
     ? getAncestorIdentities(selectedTab, windowSchema.tabs, currentRecords)
     : null;
+
+  const ancestorScope = ancestors === null ? "incomplete" : JSON.stringify(
+    Object.entries(ancestors).sort(([a], [b]) => a.localeCompare(b))
+      .map(([id, identity]) => [id, identityKey(identity)])
+  );
 
   function handleRecordChange(tabId: number, record: Record<string, unknown> | null) {
     setCurrentRecords(current => {
@@ -700,7 +705,7 @@ function App() {
 
         {windowSchema && selectedTab ? (
           <DynamicTab
-            key={selectedTab.ad_tab_id}
+            key={JSON.stringify([roleId, windowId, selectedTab.ad_tab_id, ancestorScope])}
             tab={selectedTab}
             parentTab={parentTab}
             parentRecord={parentRecord}
