@@ -394,7 +394,12 @@ export default function DynamicTab({
       const updatedRecord = { ...recordRef.current };
       for (const [columnName, value] of Object.entries(result.changes ?? {})) {
         const changedKey = columnName.toLowerCase();
-        if (!dirtyFieldsRef.current.has(changedKey)) {
+        const changedField = tab.fields.find(candidate => candidate.columnname.toLowerCase() === changedKey);
+        // Un callout no puede modificar la identidad persistida ni el vínculo contextual.
+        const protectedColumn = (isEditing && (tab.pk_columns ?? []).some(column => column.toLowerCase() === changedKey))
+          || (tab.tablevel > 0 && tab.link_columnname?.toLowerCase() === changedKey)
+          || (isNewRecord && changedField && isGeneratedIdentityColumn(tab, changedField));
+        if (!protectedColumn && !dirtyFieldsRef.current.has(changedKey)) {
           updatedRecord[changedKey] = value;
         }
       }
