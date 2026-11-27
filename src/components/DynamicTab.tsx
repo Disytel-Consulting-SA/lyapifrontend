@@ -1,5 +1,5 @@
 import type { AncestorIdentities } from "../utils/recordIdentity";
-import { getRecordIdentity, identityPathValues } from "../utils/recordIdentity";
+import { getLegacyRecordId, getRecordIdentity, identityPathValues } from "../utils/recordIdentity";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -969,13 +969,9 @@ export default function DynamicTab({
   }
 
 
-  function getDocumentRecordId(): string | number | undefined {
-  const keyValues = getRecordKeyValues();
-
-  if (!keyValues || keyValues.length !== 1) return undefined;
-
-  return keyValues[0];
-}
+  function getDocumentRecordId(): number | undefined {
+    return getLegacyRecordId(tab, isEditing && originalRecord ? originalRecord : record);
+  }
 
 
   async function handleSaveNewRecord() {
@@ -1447,14 +1443,7 @@ export default function DynamicTab({
   const documentTab = ownDocumentAction ? tab : parentDocumentAction ? parentTab : undefined;
   const documentRecord = ownDocumentAction ? record : parentRecord;
   const documentActionField = ownDocumentAction ?? parentDocumentAction;
-  const documentIdField = documentTab?.fields.find((field) => field.iskey);
-  const documentIdValue = documentIdField && documentRecord
-    ? documentRecord[documentIdField.columnname.toLowerCase()]
-    : undefined;
-  const documentRecordId =
-    typeof documentIdValue === "string" || typeof documentIdValue === "number"
-      ? documentIdValue
-      : undefined;
+  const documentRecordId = documentTab ? getLegacyRecordId(documentTab, documentRecord) : undefined;
   const docStatusField = documentTab?.fields.find(
     (field) => field.columnname.toLowerCase() === "docstatus"
   );
@@ -1542,7 +1531,7 @@ export default function DynamicTab({
           field={field}
           tableName={tab.tablename}
           recordId={getDocumentRecordId()}
-          disabled={isNewRecord || isEditing}
+          disabled={isNewRecord || isEditing || getDocumentRecordId() === undefined}
           onProcessed={() => setRefreshToken((current) => current + 1)}
         />
       );
@@ -2798,7 +2787,7 @@ export default function DynamicTab({
                   field={field}
                   tableName={tab.tablename}
                   recordId={getDocumentRecordId()}
-                  disabled={isNewRecord || isEditing || saving || calloutPending}
+                  disabled={isNewRecord || isEditing || saving || calloutPending || getDocumentRecordId() === undefined}
                   onProcessed={() => setRefreshToken((current) => current + 1)}
                 />
               ))}
