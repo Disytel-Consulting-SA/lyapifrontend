@@ -93,3 +93,16 @@ export function isDescendantTab(tab: WindowSchemaTab, ancestorId: number, tabs: 
   }
   return false;
 }
+
+/** Identificador compatible con los procesos y acciones documentales de CORE. */
+export function getLegacyRecordId(tab: WindowSchemaTab, record: Record<string, unknown> | null | undefined): number | undefined {
+  const columns = tab.pk_columns ?? [];
+  if (columns.length !== 1 || columns[0].toLowerCase() !== tab.tablename.toLowerCase() + "_id")
+    return undefined;
+  const identity = getRecordIdentity(tab, record);
+  if (!identity) return undefined;
+  const raw = String(identity[columns[0]]);
+  if (!/^[0-9]{1,10}$/.test(raw)) return undefined;
+  const id = Number(raw);
+  return id > 0 && id <= 2147483647 ? id : undefined;
+}
