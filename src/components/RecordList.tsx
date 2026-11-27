@@ -1,4 +1,4 @@
-import { getRecordIdentity, identityKey } from "../utils/recordIdentity";
+import { getLegacyRecordId, getRecordIdentity, identityKey } from "../utils/recordIdentity";
 import {
   useEffect,
   useMemo,
@@ -1162,8 +1162,8 @@ export default function RecordList({
                 }}
               >
                 {docActionField && keyField && (() => {
-                  const id = record[keyField.columnname.toLowerCase()];
-                  return id !== null && id !== undefined && id !== "" ? (
+                  const id = getLegacyRecordId(tab, record);
+                  return id !== undefined ? (
                     <Box onClick={(event) => event.stopPropagation()}>
                       <DocumentActionButton
                         tableName={tab.tablename}
