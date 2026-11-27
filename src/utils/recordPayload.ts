@@ -83,8 +83,8 @@ export function buildCreatePayload(
 
 
     /*
-     * La PK de un registro nuevo será
-     * generada por Libertya.
+     * Omitir la identidad autogenerada y el vínculo parental.
+     * Las claves explícitas deben formar parte del payload contextual.
      */
     if (contextual ? isGeneratedIdentityColumn(tab, field) || isContextualParentColumn(tab, field) : field.iskey) {
       return;
@@ -139,6 +139,26 @@ export function buildCreatePayload(
   });
 
 
+  if (contextual) {
+    // Validar el payload real, incluso si una PK no tiene AD_Field visible.
+    const columns = tab.pk_columns ?? [];
+    if (columns.length === 0)
+      throw new Error("No se dispone de la identidad de la tabla");
+
+    const missing = columns.filter(column => {
+      const name = column.toLowerCase();
+      const generated = columns.length === 1 && name === tab.tablename.toLowerCase() + "_id"
+        && tab.crud_endpoints?.POST === `/v1.0/windowrecords/${tab.ad_tab_id}/records`;
+      const parent = tab.tablevel > 0 && name === tab.link_columnname?.toLowerCase();
+      if (generated || parent) return false;
+      const value = payload[name];
+      return !(typeof value === "string" && value.trim().length > 0)
+        && !(typeof value === "number" && Number.isSafeInteger(value));
+    });
+    if (missing.length > 0)
+      throw new Error("Complete los componentes de identidad: " + missing.join(", "));
+  }
+
   return payload;
 }
 
@@ -164,7 +184,10 @@ export function validateCreateRecord(
       if (contextual && (isGeneratedIdentityColumn(tab, field) || isContextualParentColumn(tab, field)))
         return false;
 
-      if (!field.ismandatory && !(contextual && isIdentityColumn(tab, field))) {
+      if (contextual && (tab.pk_columns ?? []).some(column => column.toLowerCase() === field.columnname.toLowerCase()))
+        return isEmptyValue(record[field.columnname.toLowerCase()]);
+
+      if (!field.ismandatory) {
         return false;
       }
 
