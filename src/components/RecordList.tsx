@@ -1,3 +1,4 @@
+import { getRecordIdentity, identityKey } from "../utils/recordIdentity";
 import {
   useEffect,
   useMemo,
@@ -141,7 +142,10 @@ export default function RecordList({
 
   const docStatusField = tab.fields.find((field) => field.columnname.toLowerCase() === "docstatus" && field.isdisplayed !== false);
   const docActionField = tab.fields.find((field) => field.columnname.toLowerCase() === "docaction" && field.reference?.button_type === "document-action" && field.isdisplayed !== false);
-  const keyField = tab.fields.find((field) => field.iskey);
+  const keyField = tab.pk_columns?.length === 1
+    ? tab.fields.find((field) => field.iskey && field.columnname.toLowerCase() === tab.pk_columns?.[0].toLowerCase()
+      && field.columnname.toLowerCase() === `${tab.tablename.toLowerCase()}_id`)
+    : undefined;
   const [processedVersion, setProcessedVersion] = useState(0);
 
   const listFields = useMemo(() => {
@@ -608,6 +612,11 @@ export default function RecordList({
   }
 
 
+  function rowIdentityKey(record: Record<string, unknown>, rowIndex: number): string {
+    const identity = getRecordIdentity(tab, record);
+    return identity ? identityKey(identity) : `missing:${tab.ad_tab_id}:${listPage}:${rowIndex}`;
+  }
+
   function handleSelectRecord(
     record: Record<string, unknown>,
     rowIndex: number
@@ -1009,7 +1018,7 @@ export default function RecordList({
             rowIndex
           ) => (
             <Paper
-              key={`${listPage}-${rowIndex}`}
+              key={rowIdentityKey(record, rowIndex)}
               variant="outlined"
               onClick={() =>
                 handleSelectRecord(
