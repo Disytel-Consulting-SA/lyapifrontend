@@ -58,6 +58,8 @@ import type {
 
 import {
   buildCreatePayload,
+  isIdentityColumn,
+  isGeneratedIdentityColumn,
   buildUpdatePayload,
   validateCreateRecord,
   validateUpdateRecord,
@@ -451,6 +453,9 @@ export default function DynamicTab({
     field: WindowSchemaField
   ): boolean {
 
+    if ((isEditing && isIdentityColumn(tab, field)) || (isNewRecord && isGeneratedIdentityColumn(tab, field)))
+      return false;
+
     const state = getFieldState(field);
 
     if (state)
@@ -468,6 +473,9 @@ export default function DynamicTab({
   function getFieldVisualState(
     field: WindowSchemaField
   ): FieldVisualState {
+
+    if ((isEditing && isIdentityColumn(tab, field)) || (isNewRecord && isGeneratedIdentityColumn(tab, field)))
+      return "readonly";
 
     const state = getFieldState(field);
 
@@ -497,6 +505,9 @@ export default function DynamicTab({
   function isRequiredFieldEmpty(
       field: WindowSchemaField
     ): boolean {
+
+      if ((isEditing && isIdentityColumn(tab, field)) || (isNewRecord && isGeneratedIdentityColumn(tab, field)))
+        return false;
 
       if (!field.ismandatory) {
         return false;
