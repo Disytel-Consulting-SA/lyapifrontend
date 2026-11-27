@@ -37,7 +37,7 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import {
   CalloutValidationError,
   createContextualRecord,
-  deleteRecord,
+  deleteContextualRecord,
   evaluateRecordState,
   executeTabFieldCallout,
   getTabRecords,
@@ -821,13 +821,21 @@ export default function DynamicTab({
   async function handleListDeleteRecord(
     selectedRecord: Record<string, unknown>
   ) {
-    if (!tab.data_endpoint) {
+    await deleteSelectedRecord(selectedRecord);
+  }
+
+  async function deleteSelectedRecord(selectedRecord: Record<string, unknown>) {
+    if (!tab.crud_endpoints?.DELETE) {
+      setSaveError("La pestaña no admite eliminaciones contextuales");
+      return;
+    }
+    if (!ancestors) {
+      setSaveError("No se dispone del contexto ancestral completo");
       return;
     }
 
     const identity = getRecordIdentity(tab, selectedRecord);
-    const recordKeyValues = identity ? identityPathValues(tab, identity) : null;
-    if (!recordKeyValues) {
+    if (!identity) {
       setSaveError("No fue posible determinar la clave primaria del registro");
       return;
     }
@@ -846,15 +854,12 @@ export default function DynamicTab({
     setSaveMessage(null);
 
     try {
-      await deleteRecord(
-        tab.data_endpoint,
-        recordKeyValues
-      );
+      await deleteContextualRecord(tab, ancestors, identity);
 
       resetAfterDelete();
     } catch (error) {
       console.error(
-        `Error eliminando registro en ${tab.data_endpoint}`,
+        `Error eliminando registro en ${tab.crud_endpoints.DELETE}`,
         error
       );
 
@@ -1283,58 +1288,7 @@ export default function DynamicTab({
   }
 
   async function handleDeleteRecord() {
-    if (!tab.data_endpoint) {
-      setSaveError(
-        "La pestaña no posee un endpoint REST configurado"
-      );
-      return;
-    }
-
-    const recordKeyValues =
-      getRecordKeyValues();
-
-    if (!recordKeyValues) {
-      setSaveError(
-        "No fue posible determinar la clave primaria del registro"
-      );
-      return;
-    }
-
-    const confirmed =
-      window.confirm(
-        "¿Confirma eliminar este registro?\n\nEsta operación no puede deshacerse."
-      );
-
-    if (!confirmed)
-      return;
-
-    setSaving(true);
-    setSaveError(null);
-    setSaveMessage(null);
-
-    try {
-      await deleteRecord(
-        tab.data_endpoint,
-        recordKeyValues
-      );
-
-      resetAfterDelete();
-
-    } catch (error) {
-      console.error(
-        `Error eliminando registro en ${tab.data_endpoint}`,
-        error
-      );
-
-      setSaveError(
-        error instanceof Error
-          ? error.message
-          : "No fue posible eliminar el registro"
-      );
-
-    } finally {
-      setSaving(false);
-    }
+    await deleteSelectedRecord(isEditing && originalRecord ? originalRecord : record);
   }
 
 
