@@ -1,3 +1,4 @@
+import { getAncestorIdentities, getRecordIdentity, sameIdentity, isDescendantTab } from "./utils/recordIdentity";
 import { useEffect, useState } from "react";
 
 import {
@@ -235,16 +236,26 @@ function App() {
       : undefined;
 
 
-  function handleRecordChange(
-    tabId: number,
-    record: Record<string, unknown> | null
-  ) {
-    setCurrentRecords(
-      (current) => ({
-        ...current,
-        [tabId]: record,
-      })
-    );
+  const ancestors = selectedTab && windowSchema
+    ? getAncestorIdentities(selectedTab, windowSchema.tabs, currentRecords)
+    : null;
+
+  function handleRecordChange(tabId: number, record: Record<string, unknown> | null) {
+    setCurrentRecords(current => {
+      const next = { ...current, [tabId]: record };
+      const tabs = windowSchema?.tabs ?? [];
+      const changedTab = tabs.find(tab => tab.ad_tab_id === tabId);
+      if (changedTab && !sameIdentity(
+        getRecordIdentity(changedTab, current[tabId]),
+        getRecordIdentity(changedTab, record)
+      )) {
+        for (const tab of tabs) {
+          if (isDescendantTab(tab, tabId, tabs))
+            delete next[tab.ad_tab_id];
+        }
+      }
+      return next;
+    });
   }
 
   function handlePageChange(tabId: number, page: number) {
@@ -693,6 +704,7 @@ function App() {
             tab={selectedTab}
             parentTab={parentTab}
             parentRecord={parentRecord}
+            ancestors={ancestors}
             windowIsSOTrx={windowSchema.issotrx}
             initialPage={currentPages[selectedTab.ad_tab_id] ?? 1}
             onPageChange={handlePageChange}
