@@ -36,7 +36,7 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 
 import {
   CalloutValidationError,
-  createRecord,
+  createContextualRecord,
   deleteRecord,
   evaluateRecordState,
   executeTabFieldCallout,
@@ -456,7 +456,7 @@ export default function DynamicTab({
     field: WindowSchemaField
   ): boolean {
 
-    if ((isEditing && (isIdentityColumn(tab, field) || isContextualParentColumn(tab, field))) || (isNewRecord && isGeneratedIdentityColumn(tab, field)))
+    if ((isEditing && (isIdentityColumn(tab, field) || isContextualParentColumn(tab, field))) || (isNewRecord && (isGeneratedIdentityColumn(tab, field) || isContextualParentColumn(tab, field))))
       return false;
 
     const state = getFieldState(field);
@@ -477,7 +477,7 @@ export default function DynamicTab({
     field: WindowSchemaField
   ): FieldVisualState {
 
-    if ((isEditing && (isIdentityColumn(tab, field) || isContextualParentColumn(tab, field))) || (isNewRecord && isGeneratedIdentityColumn(tab, field)))
+    if ((isEditing && (isIdentityColumn(tab, field) || isContextualParentColumn(tab, field))) || (isNewRecord && (isGeneratedIdentityColumn(tab, field) || isContextualParentColumn(tab, field))))
       return "readonly";
 
     const state = getFieldState(field);
@@ -509,7 +509,7 @@ export default function DynamicTab({
       field: WindowSchemaField
     ): boolean {
 
-      if ((isEditing && (isIdentityColumn(tab, field) || isContextualParentColumn(tab, field))) || (isNewRecord && isGeneratedIdentityColumn(tab, field)))
+      if ((isEditing && (isIdentityColumn(tab, field) || isContextualParentColumn(tab, field))) || (isNewRecord && (isGeneratedIdentityColumn(tab, field) || isContextualParentColumn(tab, field))))
         return false;
 
       if (!field.ismandatory) {
@@ -1011,12 +1011,18 @@ export default function DynamicTab({
       return;
     }
 
-    const createEndpoint = tab.create_endpoint ?? tab.data_endpoint;
+    const createEndpoint = tab.crud_endpoints?.POST;
+    const readEndpoint = tab.crud_endpoints?.GET ?? tab.data_endpoint;
 
-    if (!createEndpoint) {
+    if (!createEndpoint || !readEndpoint) {
       setSaveError(
         "La pestaña no posee un endpoint REST configurado para creación"
       );
+      return;
+    }
+
+    if (!ancestors) {
+      setSaveError("No se dispone del contexto ancestral completo");
       return;
     }
 
@@ -1024,7 +1030,8 @@ export default function DynamicTab({
       validateCreateRecord(
         tab,
         record,
-        fieldStates
+        fieldStates,
+        true
       );
 
     if (missingFields.length > 0) {
@@ -1041,36 +1048,32 @@ export default function DynamicTab({
     setSaveError(null);
     setSaveMessage(null);
 
+    let persisted = false;
     try {
       const payload =
         buildCreatePayload(
           tab,
-          record
+          record,
+          true
         );
 
-      const createdId =
-        await createRecord(
-          createEndpoint,
-          payload
-        );
+      const identity = await createContextualRecord(tab, ancestors, payload);
 
-      if (!tab.data_endpoint) {
-        throw new Error(
-          "El registro fue creado pero la pestaña no posee un endpoint REST para recuperarlo"
-        );
-      }
+      persisted = true;
+      // El alta ya fue confirmada: no permitir repetirla si falla la lectura.
+      setIsNewRecord(false);
+      setIsNavigationDetached(true);
+      setRecord({});
+      recordRef.current = {};
+      setOriginalRecord(null);
+      onRecordChange(tab.ad_tab_id, null);
+      const keyValues = identityPathValues(tab, identity);
+      if (!keyValues)
+        throw new Error("El registro fue creado pero su identidad no es válida");
 
-      /*
-       * El alta y la navegación son contextos distintos.
-       * No intentamos inferir en qué posición quedó el registro:
-       * lo recuperamos directamente por su clave y lo mantenemos
-       * como registro actual.
-       */
-      const createdRecord =
-        await getRecordByKey(
-          tab.data_endpoint,
-          [createdId]
-        );
+      const createdRecord = readEndpoint.startsWith("/v1.0/genericidentity/")
+        ? await getRecordByIdentity(readEndpoint, identity)
+        : await getRecordByKey(readEndpoint, keyValues);
 
       if (!createdRecord) {
         throw new Error(
@@ -1102,11 +1105,7 @@ export default function DynamicTab({
         false
       );
 
-      setSaveMessage(
-        createdId
-          ? `Registro creado correctamente. ID: ${createdId}`
-          : "Registro creado correctamente."
-      );
+      setSaveMessage("Registro creado correctamente.");
 
     } catch (error) {
       console.error(
@@ -1115,9 +1114,8 @@ export default function DynamicTab({
       );
 
       setSaveError(
-        error instanceof Error
-          ? error.message
-          : "No fue posible crear el registro"
+        persisted ? "El registro fue creado pero no pudo recuperarse nuevamente." :
+          error instanceof Error ? error.message : "No fue posible crear el registro"
       );
 
     } finally {
