@@ -340,7 +340,8 @@ async function authenticatedFetch(
    * Invalidamos la sesión local y notificamos
    * a App mediante SESSION_EXPIRED_EVENT.
    */
-  if (response.status === 401 || (response.status === 403 && expireOnForbidden)) {
+  if (response.status === 401 || (response.status === 403 &&
+    (expireOnForbidden || response.headers.get("X-Libertya-Session-Invalid") === "true"))) {
 
     expireSession();
   }
@@ -1183,7 +1184,7 @@ async function identityRequest(endpoint: string, method: "POST" | "PUT" | "DELET
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-  });
+  }, false);
   if (!response.ok && !(allowNotFound && response.status === 404)) {
     const detail = await response.text();
     throw new Error(`Error ${operation}: ${detail || response.status}`);
