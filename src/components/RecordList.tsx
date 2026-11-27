@@ -74,6 +74,9 @@ interface Props {
     recordPage: number
   ) => void;
 
+  canEdit: boolean;
+  canDelete: boolean;
+
   onEditRecord: (
     record: Record<string, unknown>,
     recordPage: number
@@ -109,6 +112,8 @@ export default function RecordList({
   state,
   onStateChange,
   onSelectRecord,
+  canEdit,
+  canDelete,
   onEditRecord,
   onDeleteRecord,
   onProcessed,
@@ -1169,8 +1174,8 @@ export default function RecordList({
                     </Box>
                   ) : null;
                 })()}
-                <Tooltip title="Editar"><span><Button size="small" variant="text" aria-label="Editar" disabled={tab.isreadonly === true} onClick={(event) => handleEditRecord(event, record, rowIndex)}><EditIcon fontSize="small" /></Button></span></Tooltip>
-                <Tooltip title="Eliminar"><span><Button size="small" variant="text" color="error" aria-label="Eliminar" disabled={tab.isreadonly === true} onClick={(event) => handleDeleteRecord(event, record)}><DeleteIcon fontSize="small" /></Button></span></Tooltip>
+                <Tooltip title="Editar"><span><Button size="small" variant="text" aria-label="Editar" disabled={!canEdit || !getRecordIdentity(tab, record)} onClick={(event) => handleEditRecord(event, record, rowIndex)}><EditIcon fontSize="small" /></Button></span></Tooltip>
+                <Tooltip title="Eliminar"><span><Button size="small" variant="text" color="error" aria-label="Eliminar" disabled={!canDelete || !getRecordIdentity(tab, record)} onClick={(event) => handleDeleteRecord(event, record)}><DeleteIcon fontSize="small" /></Button></span></Tooltip>
               </Box>
 
             </Paper>
