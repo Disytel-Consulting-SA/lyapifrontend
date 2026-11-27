@@ -56,3 +56,40 @@ export function identityPathValues(
     return null;
   return (tab.pk_columns ?? []).map(column => normalized[column]);
 }
+
+
+/** Resuelve la rama completa; null distingue un contexto incompleto de una raíz. */
+export function getAncestorIdentities(
+  tab: WindowSchemaTab,
+  tabs: WindowSchemaTab[],
+  records: Record<number, Record<string, unknown> | null>
+): AncestorIdentities | null {
+  const entries: Array<[string, RecordIdentity]> = [];
+  const visited = new Set<number>([tab.ad_tab_id]);
+  let child = tab;
+  while (child.tablevel > 0) {
+    const parent = tabs.find(candidate => candidate.ad_tab_id === child.parent_ad_tab_id);
+    if (!parent || visited.has(parent.ad_tab_id) || parent.tablevel !== child.tablevel - 1)
+      return null;
+    const identity = getRecordIdentity(parent, records[parent.ad_tab_id]);
+    if (!identity)
+      return null;
+    visited.add(parent.ad_tab_id);
+    entries.unshift([String(parent.ad_tab_id), identity]);
+    child = parent;
+  }
+  return child.tablevel === 0 ? Object.fromEntries(entries) : null;
+}
+
+/** Identifica descendientes estructurales sin afectar ramas hermanas. */
+export function isDescendantTab(tab: WindowSchemaTab, ancestorId: number, tabs: WindowSchemaTab[]): boolean {
+  const visited = new Set<number>([tab.ad_tab_id]);
+  let parentId = tab.parent_ad_tab_id;
+  while (parentId !== undefined && !visited.has(parentId)) {
+    if (parentId === ancestorId)
+      return true;
+    visited.add(parentId);
+    parentId = tabs.find(candidate => candidate.ad_tab_id === parentId)?.parent_ad_tab_id;
+  }
+  return false;
+}
