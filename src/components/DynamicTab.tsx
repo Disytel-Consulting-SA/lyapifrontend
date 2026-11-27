@@ -41,7 +41,6 @@ import {
   evaluateRecordState,
   executeTabFieldCallout,
   getTabRecords,
-  getRecord,
   getNewRecordState,
   getRecordByKey,
   updateContextualRecord,
@@ -579,52 +578,6 @@ export default function DynamicTab({
   }
 
 
-  /*
-   * Filtro utilizado cuando la pestaña debe navegar mediante su
-   * data_endpoint. Es necesario para tablas con clave compuesta,
-   * que todavía no son soportadas por /tabs/{id}/records.
-   */
-  function buildDataEndpointFilter(): string | undefined {
-    const filters: string[] = [];
-
-    if (
-      tab.parent_ad_tab_id !== undefined &&
-      parentTab &&
-      parentRecord &&
-      tab.link_columnname
-    ) {
-      const parentKeyField =
-        parentTab.fields.find(
-          (field) => field.iskey
-        );
-
-      if (parentKeyField) {
-        const parentValue =
-          parentRecord[
-            parentKeyField.columnname.toLowerCase()
-          ];
-
-        if (
-          parentValue !== undefined &&
-          parentValue !== null
-        ) {
-          filters.push(
-            `${tab.link_columnname}=${parentValue}`
-          );
-        }
-      }
-    }
-
-    if (searchFilter) {
-      filters.push(searchFilter);
-    }
-
-    return filters.length > 0
-      ? filters.join(" and ")
-      : undefined;
-  }
-
-
   function buildRecordFilter(): string | undefined {
     return searchFilter || undefined;
   }
@@ -783,18 +736,9 @@ export default function DynamicTab({
   }
 
 
-  function handleGridSelectRecord(
-    selectedRecord: Record<string, unknown>,
-    recordPage: number
-  ) {
-    selectRecord(
-      selectedRecord,
-      recordPage
-    );
-
-    setViewMode("form");
+  function handleGridSelectRecord(selectedRecord: Record<string, unknown>, recordPage: number) {
+    void openProjectedRecord(selectedRecord, recordPage, false);
   }
-
 
   function canWrite(method: "POST" | "PUT" | "DELETE"): boolean {
     return !!ancestors && tab.isreadonly !== true && !!tab.crud_endpoints?.[method]
@@ -802,28 +746,42 @@ export default function DynamicTab({
       && (method === "DELETE" || !!(tab.crud_endpoints?.GET ?? tab.data_endpoint));
   }
 
-    function handleListEditRecord(
-    selectedRecord: Record<string, unknown>,
-    recordPage: number
-  ) {
-    if (!canWrite("PUT") || saving || !getRecordIdentity(tab, selectedRecord)) return;
-    selectRecord(
-      selectedRecord,
-      recordPage
-    );
-
-    setOriginalRecord({
-      ...selectedRecord,
-    });
-
-    setSaveError(null);
-    setSaveMessage(null);
-
-    setViewMode("form");
-    setIsEditing(true);
+  function handleListEditRecord(selectedRecord: Record<string, unknown>, recordPage: number) {
+    if (!canWrite("PUT")) return;
+    void openProjectedRecord(selectedRecord, recordPage, true);
   }
 
-  
+  async function openProjectedRecord(selectedRecord: Record<string, unknown>, recordPage: number, editing: boolean) {
+    if (saving) return;
+    const identity = getRecordIdentity(tab, selectedRecord);
+    const keys = identity ? identityPathValues(tab, identity) : null;
+    const endpoint = tab.crud_endpoints?.GET ?? tab.data_endpoint;
+    if (!identity || !keys || !endpoint) {
+      setSaveError("No fue posible identificar el registro seleccionado");
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+    setSaveMessage(null);
+    try {
+      const fullRecord = endpoint.startsWith("/v1.0/genericidentity/")
+        ? await getRecordByIdentity(endpoint, identity)
+        : await getRecordByKey(endpoint, keys);
+      if (!fullRecord) throw new Error("No fue posible recuperar el registro seleccionado");
+
+      selectRecord(fullRecord, recordPage);
+      setOriginalRecord({ ...fullRecord });
+      // La posición de una fila filtrada u ordenada no equivale necesariamente a la ficha.
+      setIsNavigationDetached(true);
+      setViewMode("form");
+      setIsEditing(editing);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "No fue posible recuperar el registro");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleListDeleteRecord(
     selectedRecord: Record<string, unknown>
@@ -2099,10 +2057,10 @@ export default function DynamicTab({
 
 
   useEffect(() => {
-    if (isNewRecord || isNavigationDetached)
+    if (isNewRecord || isEditing || isNavigationDetached)
       return;
 
-    if (!tab.data_endpoint) {
+    if (!(tab.crud_endpoints?.GET ?? tab.data_endpoint)) {
       setRecord({});
       setFieldStates([]);
       setTotalCount(0);
@@ -2124,32 +2082,15 @@ export default function DynamicTab({
       return;
     }
 
-    /*
-     * /tabs/{id}/records aporta la semántica completa de AD_Tab,
-     * pero actualmente requiere una clave simple numérica.
-     *
-     * Las tablas con clave compuesta (por ejemplo M_ProductPrice)
-     * continúan navegándose mediante su endpoint REST específico,
-     * como ocurría antes de incorporar la navegación contextual.
-     */
+    // La lectura contextual soporta también identidades compuestas.
     let cancelled = false;
-    const recordRequest =
-      (tab.pk_columns?.length ?? 0) > 1
-        ? getRecord(
-            tab.data_endpoint,
-            page,
-            buildDataEndpointFilter()
-          ).then(({ record, totalCount }) => ({
-            records: record ? [record] : [],
-            totalCount,
-          }))
-        : getTabRecords(tab.ad_tab_id, {
-            parent_values: parentValues,
-            filter: buildRecordFilter(),
-            limit: 1,
-            page,
-            include_total: true,
-          });
+    const recordRequest = getTabRecords(tab.ad_tab_id, {
+      parent_values: parentValues,
+      filter: buildRecordFilter(),
+      limit: 1,
+      page,
+      include_total: true,
+    });
 
     recordRequest
       .then(({ records, totalCount }) => {
@@ -2213,6 +2154,7 @@ export default function DynamicTab({
     page,
     parentRecord,
     isNewRecord,
+    isEditing,
     isNavigationDetached,
     refreshToken,
     searchFilter,
