@@ -272,7 +272,8 @@ export function buildUpdatePayload(
 export function validateUpdateRecord(
   tab: WindowSchemaTab,
   record: Record<string, unknown>,
-  fieldStates: WindowRecordFieldState[]
+  fieldStates: WindowRecordFieldState[],
+  contextual = false
 ): WindowSchemaField[] {
 
   return tab.fields.filter((field) => {
