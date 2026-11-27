@@ -1,3 +1,4 @@
+import type { AncestorIdentities } from "../utils/recordIdentity";
 import { getRecordIdentity, identityPathValues } from "../utils/recordIdentity";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -88,6 +89,7 @@ import ButtonField from "./ButtonField";
 interface Props {
   tab: WindowSchemaTab;
   parentTab?: WindowSchemaTab;
+  ancestors?: AncestorIdentities | null;
   parentRecord?: Record<string, unknown> | null;
   windowIsSOTrx: boolean;
   initialPage: number;
