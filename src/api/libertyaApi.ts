@@ -1242,7 +1242,7 @@ export async function createContextualRecord(tab: WindowSchemaTab, ancestors: An
     const response = await identityRequest(endpoint, "POST", { ancestors, values }, "creando registro");
     identity = getRecordIdentity(tab, await response.json());
   } else if (endpoint === `/v1.0/windowrecords/${tab.ad_tab_id}/records`) {
-    const response = await identityRequest(endpoint, "POST", { parent_values: legacyParentValues(ancestors), values }, "creando registro");
+    const response = await identityRequest(endpoint, "POST", { parentValues: legacyParentValues(ancestors), values }, "creando registro");
     const id = (await response.text()).replace(/^"|"$/g, "");
     const keys = tab.pk_columns ?? [];
     identity = keys.length === 1 && /^[0-9]{1,10}$/.test(id) && Number(id) > 0 && Number(id) <= 2147483647
@@ -1262,7 +1262,7 @@ export async function updateContextualRecord(tab: WindowSchemaTab, ancestors: An
     await identityRequest(endpoint, "PUT", { ancestors, identity, values }, "actualizando registro");
   else if (endpoint === `/v1.0/windowrecords/${tab.ad_tab_id}/records/{recordId}`)
     await identityRequest(legacyRecordPath(endpoint, tab, identity), "PUT",
-      { parent_values: legacyParentValues(ancestors), values }, "actualizando registro");
+      { parentValues: legacyParentValues(ancestors), values }, "actualizando registro");
   else
     throw new Error("Contrato contextual de modificación no reconocido");
 }
