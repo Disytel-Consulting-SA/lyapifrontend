@@ -22,6 +22,20 @@ const SERVER_MANAGED_COLUMNS =
   ]);
 
 
+export function isIdentityColumn(tab: WindowSchemaTab, field: WindowSchemaField): boolean {
+  return field.iskey || (tab.pk_columns ?? []).some(column => column.toLowerCase() === field.columnname.toLowerCase());
+}
+
+export function isGeneratedIdentityColumn(tab: WindowSchemaTab, field: WindowSchemaField): boolean {
+  return field.iskey && (tab.pk_columns?.length ?? 0) === 1
+    && tab.pk_columns?.[0].toLowerCase() === field.columnname.toLowerCase()
+    && field.columnname.toLowerCase() === tab.tablename.toLowerCase() + "_id";
+}
+
+export function isContextualParentColumn(tab: WindowSchemaTab, field: WindowSchemaField): boolean {
+  return tab.tablevel > 0 && tab.link_columnname?.toLowerCase() === field.columnname.toLowerCase();
+}
+
 function isEmptyValue(
   value: unknown
 ): boolean {
@@ -54,7 +68,8 @@ function isEmptyValue(
  */
 export function buildCreatePayload(
   tab: WindowSchemaTab,
-  record: Record<string, unknown>
+  record: Record<string, unknown>,
+  contextual = false
 ): Record<string, unknown> {
 
   const payload:
@@ -71,7 +86,7 @@ export function buildCreatePayload(
      * La PK de un registro nuevo será
      * generada por Libertya.
      */
-    if (field.iskey) {
+    if (contextual ? isGeneratedIdentityColumn(tab, field) || isContextualParentColumn(tab, field) : field.iskey) {
       return;
     }
 
@@ -139,13 +154,17 @@ export function buildCreatePayload(
 export function validateCreateRecord(
   tab: WindowSchemaTab,
   record: Record<string, unknown>,
-  fieldStates: WindowRecordFieldState[]
+  fieldStates: WindowRecordFieldState[],
+  contextual = false
 ): WindowSchemaField[] {
 
   return tab.fields.filter(
     (field) => {
 
-      if (!field.ismandatory) {
+      if (contextual && (isGeneratedIdentityColumn(tab, field) || isContextualParentColumn(tab, field)))
+        return false;
+
+      if (!field.ismandatory && !(contextual && isIdentityColumn(tab, field))) {
         return false;
       }
 
@@ -195,7 +214,8 @@ export function validateCreateRecord(
 export function buildUpdatePayload(
   tab: WindowSchemaTab,
   record: Record<string, unknown>,
-  originalRecord: Record<string, unknown>
+  originalRecord: Record<string, unknown>,
+  contextual = false
 ): Record<string, unknown> {
 
   const payload: Record<string, unknown> = {};
@@ -206,7 +226,7 @@ export function buildUpdatePayload(
   tab.fields.forEach((field) => {
     const columnName = field.columnname.toLowerCase();
 
-    if (field.iskey || pkColumns.has(columnName))
+    if (field.iskey || pkColumns.has(columnName) || (contextual && isContextualParentColumn(tab, field)))
       return;
 
     if (SERVER_MANAGED_COLUMNS.has(columnName))
@@ -256,7 +276,7 @@ export function validateUpdateRecord(
 ): WindowSchemaField[] {
 
   return tab.fields.filter((field) => {
-    if (!field.ismandatory)
+    if (isIdentityColumn(tab, field) || (contextual && isContextualParentColumn(tab, field)) || !field.ismandatory)
       return false;
 
     const state = fieldStates.find(
