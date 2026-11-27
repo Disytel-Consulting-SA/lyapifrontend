@@ -1,7 +1,10 @@
+import { getRecordIdentity } from "../utils/recordIdentity";
+import type { RecordIdentity, AncestorIdentities } from "../utils/recordIdentity";
 import type {
   MenuOption,
   WindowOption,
   WindowSchema,
+  WindowSchemaTab,
 } from "../types/metadata";
 import type { ProcessExecuteRequest, ProcessExecuteResponse, ProcessSchema, ProcessState, ProcessStateRequest } from "../types/process";
 
@@ -1170,4 +1173,107 @@ export async function generateProcessReport(processId: number, request: ProcessE
     throw new Error("El servidor no devolvió un documento PDF válido.");
   }
   return pdf;
+}
+
+
+/** Solicitudes JSON de identidad, sin intentar interpretar respuestas 204. */
+async function identityRequest(endpoint: string, method: "POST" | "PUT" | "DELETE",
+  body: unknown, operation: string, allowNotFound = false): Promise<Response> {
+  const response = await authenticatedFetch(`${BASE_URL}${endpoint}`, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok && !(allowNotFound && response.status === 404)) {
+    const detail = await response.text();
+    throw new Error(`Error ${operation}: ${detail || response.status}`);
+  }
+  return response;
+}
+
+export async function getRecordByIdentity(endpoint: string, identity: RecordIdentity):
+  Promise<Record<string, unknown> | null> {
+  const response = await identityRequest(endpoint + "/lookup", "POST", identity, "recuperando registro", true);
+  return response.status === 404 ? null : response.json();
+}
+
+function contextualEndpoint(tab: WindowSchemaTab, method: "POST" | "PUT" | "DELETE"): string {
+  const endpoint = tab.crud_endpoints?.[method];
+  if (!endpoint)
+    throw new Error("La pestaña no admite esta operación");
+  return endpoint;
+}
+
+/** Contrato histórico: contexto plano, exclusivamente identificadores numéricos positivos. */
+function legacyParentValues(ancestors: AncestorIdentities): Record<string, string> {
+  const entries: Array<[string, string]> = [];
+  const seen = new Set<string>();
+  for (const identity of Object.values(ancestors)) {
+    const columns = Object.entries(identity);
+    if (columns.length !== 1)
+      throw new Error("El endpoint histórico requiere ancestros de clave simple");
+    const [column, value] = columns[0];
+    const raw = String(value);
+    if (!/^[0-9]{1,10}$/.test(raw) || Number(raw) <= 0 || Number(raw) > 2147483647 || seen.has(column.toLowerCase()))
+      throw new Error("Contexto ancestral incompatible con el endpoint histórico");
+    seen.add(column.toLowerCase());
+    entries.push([column, raw]);
+  }
+  return Object.fromEntries(entries);
+}
+
+function legacyRecordPath(endpoint: string, tab: WindowSchemaTab, identity: RecordIdentity): string {
+  const normalized = getRecordIdentity(tab, identity);
+  const keys = tab.pk_columns ?? [];
+  if (!normalized || keys.length !== 1 || Object.keys(identity).length !== 1)
+    throw new Error("El endpoint histórico requiere una identidad simple");
+  const id = String(normalized[keys[0]]);
+  if (!/^[0-9]{1,10}$/.test(id) || Number(id) <= 0 || Number(id) > 2147483647)
+    throw new Error("Identificador numérico inválido");
+  return endpoint.replace("{recordId}", encodeURIComponent(id));
+}
+
+export async function createContextualRecord(tab: WindowSchemaTab, ancestors: AncestorIdentities,
+  values: Record<string, unknown>): Promise<RecordIdentity> {
+  const endpoint = contextualEndpoint(tab, "POST");
+  let identity: RecordIdentity | null;
+  if (endpoint === `/v1.0/windowidentity/${tab.ad_tab_id}/records`) {
+    const response = await identityRequest(endpoint, "POST", { ancestors, values }, "creando registro");
+    identity = getRecordIdentity(tab, await response.json());
+  } else if (endpoint === `/v1.0/windowrecords/${tab.ad_tab_id}/records`) {
+    const response = await identityRequest(endpoint, "POST", { parent_values: legacyParentValues(ancestors), values }, "creando registro");
+    const id = (await response.text()).replace(/^"|"$/g, "");
+    const keys = tab.pk_columns ?? [];
+    identity = keys.length === 1 && /^[0-9]{1,10}$/.test(id) && Number(id) > 0 && Number(id) <= 2147483647
+      ? getRecordIdentity(tab, { [keys[0]]: Number(id) }) : null;
+  } else {
+    throw new Error("Contrato contextual de alta no reconocido");
+  }
+  if (!identity)
+    throw new Error("El backend no devolvió una identidad completa para el registro creado");
+  return identity;
+}
+
+export async function updateContextualRecord(tab: WindowSchemaTab, ancestors: AncestorIdentities,
+  identity: RecordIdentity, values: Record<string, unknown>): Promise<void> {
+  const endpoint = contextualEndpoint(tab, "PUT");
+  if (endpoint === `/v1.0/windowidentity/${tab.ad_tab_id}/record`)
+    await identityRequest(endpoint, "PUT", { ancestors, identity, values }, "actualizando registro");
+  else if (endpoint === `/v1.0/windowrecords/${tab.ad_tab_id}/records/{recordId}`)
+    await identityRequest(legacyRecordPath(endpoint, tab, identity), "PUT",
+      { parent_values: legacyParentValues(ancestors), values }, "actualizando registro");
+  else
+    throw new Error("Contrato contextual de modificación no reconocido");
+}
+
+export async function deleteContextualRecord(tab: WindowSchemaTab, ancestors: AncestorIdentities,
+  identity: RecordIdentity): Promise<void> {
+  const endpoint = contextualEndpoint(tab, "DELETE");
+  if (endpoint === `/v1.0/windowidentity/${tab.ad_tab_id}/record`)
+    await identityRequest(endpoint, "DELETE", { ancestors, identity }, "eliminando registro");
+  else if (endpoint === `/v1.0/windowrecords/${tab.ad_tab_id}/records/{recordId}`)
+    await identityRequest(legacyRecordPath(endpoint, tab, identity), "DELETE",
+      legacyParentValues(ancestors), "eliminando registro");
+  else
+    throw new Error("Contrato contextual de eliminación no reconocido");
 }
