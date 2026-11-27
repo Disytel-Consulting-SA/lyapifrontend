@@ -625,7 +625,7 @@ export async function getTabRecords(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(query),
-    }
+    }, false
   );
 
   if (!response.ok) {
