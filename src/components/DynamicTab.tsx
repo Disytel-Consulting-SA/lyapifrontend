@@ -1,6 +1,6 @@
 import type { AncestorIdentities } from "../utils/recordIdentity";
 import { getLegacyRecordId, getRecordIdentity, identityPathValues } from "../utils/recordIdentity";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
   Alert,
@@ -163,8 +163,8 @@ export default function DynamicTab({
   parentRecord,
   windowIsSOTrx,
   initialPage,
-  onPageChange,
-  onRecordChange,
+  onPageChange: notifyPageChange,
+  onRecordChange: notifyRecordChange,
   onCloseWindow,
 }: Props) {
 
@@ -176,6 +176,24 @@ export default function DynamicTab({
   const calloutEpochRef = useRef(0);
   const calloutPendingRef = useRef(false);
   const stateEvaluationRef = useRef(0);
+  const mountedRef = useRef(false);
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      calloutEpochRef.current += 1;
+      stateEvaluationRef.current += 1;
+    };
+  }, []);
+
+  function onRecordChange(tabId: number, value: Record<string, unknown> | null) {
+    if (mountedRef.current) notifyRecordChange(tabId, value);
+  }
+
+  function onPageChange(tabId: number, value: number) {
+    if (mountedRef.current) notifyPageChange(tabId, value);
+  }
+
   const [page, setPage] = useState(initialPage);
   const [totalCount, setTotalCount] = useState(0);
 
@@ -956,6 +974,7 @@ export default function DynamicTab({
       };
 
       setRecord(restoredRecord);
+      recordRef.current = restoredRecord;
 
       void reevaluateRecordState(
         restoredRecord
@@ -2056,6 +2075,9 @@ export default function DynamicTab({
 
     if (!(tab.crud_endpoints?.GET ?? tab.data_endpoint)) {
       setRecord({});
+      recordRef.current = {};
+      setOriginalRecord(null);
+      stateEvaluationRef.current += 1;
       setFieldStates([]);
       setTotalCount(0);
       onRecordChange(tab.ad_tab_id, null);
@@ -2070,6 +2092,9 @@ export default function DynamicTab({
     */
     if (tab.parent_ad_tab_id !== undefined && !parentValues) {
       setRecord({});
+      recordRef.current = {};
+      setOriginalRecord(null);
+      stateEvaluationRef.current += 1;
       setFieldStates([]);
       setTotalCount(0);
       onRecordChange(tab.ad_tab_id, null);
