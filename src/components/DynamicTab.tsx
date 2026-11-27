@@ -44,7 +44,8 @@ import {
   getRecord,
   getNewRecordState,
   getRecordByKey,
-  updateRecord,
+  updateContextualRecord,
+  getRecordByIdentity,
 } from "../api/libertyaApi";
 
 import type {
@@ -60,6 +61,7 @@ import {
   buildCreatePayload,
   isIdentityColumn,
   isGeneratedIdentityColumn,
+  isContextualParentColumn,
   buildUpdatePayload,
   validateCreateRecord,
   validateUpdateRecord,
@@ -158,6 +160,7 @@ function toCalloutValue(field: WindowSchemaField, value: unknown): unknown {
 export default function DynamicTab({
   tab,
   parentTab,
+  ancestors,
   parentRecord,
   windowIsSOTrx,
   initialPage,
@@ -453,7 +456,7 @@ export default function DynamicTab({
     field: WindowSchemaField
   ): boolean {
 
-    if ((isEditing && isIdentityColumn(tab, field)) || (isNewRecord && isGeneratedIdentityColumn(tab, field)))
+    if ((isEditing && (isIdentityColumn(tab, field) || isContextualParentColumn(tab, field))) || (isNewRecord && isGeneratedIdentityColumn(tab, field)))
       return false;
 
     const state = getFieldState(field);
@@ -474,7 +477,7 @@ export default function DynamicTab({
     field: WindowSchemaField
   ): FieldVisualState {
 
-    if ((isEditing && isIdentityColumn(tab, field)) || (isNewRecord && isGeneratedIdentityColumn(tab, field)))
+    if ((isEditing && (isIdentityColumn(tab, field) || isContextualParentColumn(tab, field))) || (isNewRecord && isGeneratedIdentityColumn(tab, field)))
       return "readonly";
 
     const state = getFieldState(field);
@@ -506,7 +509,7 @@ export default function DynamicTab({
       field: WindowSchemaField
     ): boolean {
 
-      if ((isEditing && isIdentityColumn(tab, field)) || (isNewRecord && isGeneratedIdentityColumn(tab, field)))
+      if ((isEditing && (isIdentityColumn(tab, field) || isContextualParentColumn(tab, field))) || (isNewRecord && isGeneratedIdentityColumn(tab, field)))
         return false;
 
       if (!field.ismandatory) {
@@ -1124,9 +1127,9 @@ export default function DynamicTab({
 
 
   async function handleSaveEditedRecord() {
-    if (!tab.data_endpoint) {
+    if (!tab.crud_endpoints?.PUT || !(tab.crud_endpoints.GET ?? tab.data_endpoint)) {
       setSaveError(
-        "La pestaña no posee un endpoint REST configurado"
+        "La pestaña no admite modificaciones contextuales"
       );
       return;
     }
@@ -1138,10 +1141,15 @@ export default function DynamicTab({
       return;
     }
 
-    const recordKeyValues =
-      getRecordKeyValues();
+    if (!ancestors) {
+      setSaveError("No se dispone del contexto ancestral completo");
+      return;
+    }
 
-    if (!recordKeyValues) {
+    const identity = getRecordIdentity(tab, originalRecord);
+    const recordKeyValues = identity ? identityPathValues(tab, identity) : null;
+
+    if (!identity || !recordKeyValues) {
       setSaveError(
         "No fue posible determinar la clave primaria del registro"
       );
@@ -1152,7 +1160,8 @@ export default function DynamicTab({
       validateUpdateRecord(
         tab,
         record,
-        fieldStates
+        fieldStates,
+        true
       );
 
     if (missingFields.length > 0) {
@@ -1174,7 +1183,8 @@ export default function DynamicTab({
         buildUpdatePayload(
           tab,
           record,
-          originalRecord
+          originalRecord,
+          true
         );
 
       if (
@@ -1188,17 +1198,15 @@ export default function DynamicTab({
         return;
       }
 
-      await updateRecord(
-        tab.data_endpoint,
-        recordKeyValues,
-        payload
-      );
+      await updateContextualRecord(tab, ancestors, identity, payload);
+      setIsEditing(false);
 
-      const updatedRecord =
-        await getRecordByKey(
-          tab.data_endpoint,
-          recordKeyValues
-        );
+      const endpoint = tab.crud_endpoints.GET ?? tab.data_endpoint;
+      const updatedRecord = endpoint
+        ? endpoint.startsWith("/v1.0/genericidentity/")
+          ? await getRecordByIdentity(endpoint, identity)
+          : await getRecordByKey(endpoint, recordKeyValues)
+        : null;
 
       if (!updatedRecord) {
         setSaveError(
@@ -1210,6 +1218,7 @@ export default function DynamicTab({
       }
 
       setRecord(updatedRecord);
+      recordRef.current = updatedRecord;
 
       setOriginalRecord({
         ...updatedRecord,
