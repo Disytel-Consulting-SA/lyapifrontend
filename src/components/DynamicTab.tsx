@@ -1,3 +1,4 @@
+import { getRecordIdentity, identityPathValues } from "../utils/recordIdentity";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -808,36 +809,11 @@ export default function DynamicTab({
       return;
     }
 
-    if (
-      !tab.pk_columns ||
-      tab.pk_columns.length === 0
-    ) {
-      setSaveError(
-        "No fue posible determinar la clave primaria del registro"
-      );
+    const identity = getRecordIdentity(tab, selectedRecord);
+    const recordKeyValues = identity ? identityPathValues(tab, identity) : null;
+    if (!recordKeyValues) {
+      setSaveError("No fue posible determinar la clave primaria del registro");
       return;
-    }
-
-    const recordKeyValues:
-      Array<string | number> = [];
-
-    for (const columnName of tab.pk_columns) {
-      const value =
-        selectedRecord[
-          columnName.toLowerCase()
-        ];
-
-      if (
-        typeof value !== "string" &&
-        typeof value !== "number"
-      ) {
-        setSaveError(
-          "No fue posible determinar la clave primaria del registro"
-        );
-        return;
-      }
-
-      recordKeyValues.push(value);
     }
 
     const confirmed =
@@ -998,40 +974,10 @@ export default function DynamicTab({
   }
 
 
-  function getRecordKeyValues():
-    Array<string | number> | undefined {
-
-    if (
-      !tab.pk_columns ||
-      tab.pk_columns.length === 0
-    ) {
-      return undefined;
-    }
-
-    const values:
-      Array<string | number> = [];
-
-    for (
-      const columnName
-      of tab.pk_columns
-    ) {
-
-      const value =
-        record[
-          columnName.toLowerCase()
-        ];
-
-      if (
-        typeof value !== "string" &&
-        typeof value !== "number"
-      ) {
-        return undefined;
-      }
-
-      values.push(value);
-    }
-
-    return values;
+  function getRecordKeyValues(): Array<string | number> | undefined {
+    // Durante la edición, la identidad pertenece al registro original.
+    const identity = getRecordIdentity(tab, isEditing && originalRecord ? originalRecord : record);
+    return identity ? identityPathValues(tab, identity) ?? undefined : undefined;
   }
 
 
