@@ -1,3 +1,4 @@
+import { getRecordIdentity, identityKey } from "../utils/recordIdentity";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -204,6 +205,11 @@ export default function RecordGrid({
    * recordPage representa la posición absoluta
    * del registro dentro del conjunto completo.
    */
+  function rowIdentityKey(record: Record<string, unknown>, rowIndex: number): string {
+    const identity = getRecordIdentity(tab, record);
+    return identity ? identityKey(identity) : `missing:${tab.ad_tab_id}:${gridPage}:${rowIndex}`;
+  }
+
   function handleSelectRecord(
     record: Record<string, unknown>,
     rowIndex: number
@@ -380,7 +386,7 @@ export default function RecordGrid({
                 ) => (
 
                   <TableRow
-                    key={rowIndex}
+                    key={rowIdentityKey(record, rowIndex)}
                     hover
 
                     onClick={() =>
